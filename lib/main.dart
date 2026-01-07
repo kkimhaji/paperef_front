@@ -3,11 +3,11 @@ import 'package:provider/provider.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import 'core/theme/app_theme.dart';
-import 'features/authentication/providers/auth_provider.dart';
+import 'features/papers/providers/auth_provider.dart';
 import 'features/papers/providers/paper_provider.dart';
 import 'shared/services/api_service.dart';
 import 'shared/services/storage_service.dart';
-import 'features/authentication/presentation/login_screen.dart';
+import 'features/papers/presentation/login_screen.dart';
 import 'features/papers/presentation/papers_list_screen.dart';
 
 void main() {
@@ -38,8 +38,8 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'Paperef',
             theme: AppTheme.lightTheme,
-            home: auth.isAuthenticated 
-                ? const PapersListScreen() 
+            home: auth.isAuthenticated
+                ? const PapersListScreen()
                 : const LoginScreen(),
             debugShowCheckedModeBanner: false,
           );

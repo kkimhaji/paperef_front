@@ -8,7 +8,7 @@ import '../../../core/constants/api_constants.dart';
 class AuthProvider with ChangeNotifier {
   final ApiService _apiService;
   final StorageService _storageService;
-  
+
   User? _user;
   bool _isLoading = false;
   String? _error;
@@ -124,7 +124,7 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> logout() async {
     final refreshToken = await _storageService.getRefreshToken();
-    
+
     if (refreshToken != null) {
       try {
         await _apiService.post(
