@@ -24,6 +24,25 @@ class ApiService {
     return headers;
   }
 
+  // OAuth2 로그인용 form-urlencoded POST 요청
+  Future<http.Response> postFormUrlEncoded(
+    String endpoint,
+    Map<String, String> body,
+  ) async {
+    final url = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+
+    final headers = {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Accept': 'application/json',
+    };
+
+    return await http.post(
+      url,
+      headers: headers,
+      body: body,
+    );
+  }
+
   // POST 요청
   Future<http.Response> post(
     String endpoint,
@@ -32,7 +51,7 @@ class ApiService {
   }) async {
     final url = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     final headers = await _getHeaders(includeAuth: includeAuth);
-    
+
     return await http.post(
       url,
       headers: headers,
@@ -49,7 +68,7 @@ class ApiService {
     if (queryParameters != null) {
       url = url.replace(queryParameters: queryParameters);
     }
-    
+
     final headers = await _getHeaders();
     return await http.get(url, headers: headers);
   }
@@ -61,7 +80,7 @@ class ApiService {
   ) async {
     final url = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     final headers = await _getHeaders();
-    
+
     return await http.put(
       url,
       headers: headers,
@@ -73,7 +92,7 @@ class ApiService {
   Future<http.Response> delete(String endpoint) async {
     final url = Uri.parse('${ApiConstants.baseUrl}$endpoint');
     final headers = await _getHeaders();
-    
+
     return await http.delete(url, headers: headers);
   }
 
@@ -85,7 +104,10 @@ class ApiService {
 
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.refresh}'),
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+        },
         body: jsonEncode({'refresh_token': refreshToken}),
       );
 

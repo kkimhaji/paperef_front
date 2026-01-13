@@ -35,7 +35,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final response = await _apiService.post(
+      // OAuth2PasswordRequestForm 형식으로 전송
+      final response = await _apiService.postFormUrlEncoded(
         ApiConstants.login,
         {
           'username': username,
@@ -53,7 +54,8 @@ class AuthProvider with ChangeNotifier {
         notifyListeners();
         return true;
       } else {
-        _error = 'Login failed';
+        final data = jsonDecode(response.body);
+        _error = data['detail'] ?? 'Login failed';
         _isLoading = false;
         notifyListeners();
         return false;
@@ -84,6 +86,7 @@ class AuthProvider with ChangeNotifier {
       if (response.statusCode == 201) {
         _isLoading = false;
         notifyListeners();
+        // 회원가입 성공 후 자동 로그인
         return await login(email, password);
       } else {
         final data = jsonDecode(response.body);
