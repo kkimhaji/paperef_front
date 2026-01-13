@@ -131,3 +131,7 @@ firebase_options.dart
 *.g.dart
 *.freezed.dart
 *.gr.dart
+
+# OS
+.DS_Store
+Thumbs.db
