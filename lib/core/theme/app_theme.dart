@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static ThemeData lightTheme = ThemeData(
@@ -7,6 +8,7 @@ class AppTheme {
       brightness: Brightness.light,
     ),
     useMaterial3: true,
+    textTheme: GoogleFonts.notoSansKrTextTheme(),
     cardTheme: const CardThemeData(
       elevation: 2,
       shape: RoundedRectangleBorder(
