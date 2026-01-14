@@ -6,8 +6,8 @@ class Hashtag {
 
   factory Hashtag.fromJson(Map<String, dynamic> json) {
     return Hashtag(
-      id: json['id'],
-      name: json['name'],
+      id: json['id'] as int,
+      name: json['name'] as String,
     );
   }
 }
@@ -34,17 +34,38 @@ class Paper {
   });
 
   factory Paper.fromJson(Map<String, dynamic> json) {
-    return Paper(
-      id: json['id'],
-      title: json['title'],
-      summary: json['summary'],
-      content: json['content'],
-      userId: json['user_id'],
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
-      hashtags: (json['hashtags'] as List)
-          .map((tag) => Hashtag.fromJson(tag))
-          .toList(),
-    );
+    try {
+      return Paper(
+        id: json['id'] as int,
+        title: json['title'] as String,
+        summary: json['summary'] as String?,
+        content: json['content'] as String?,
+        userId: json['user_id'] as int,
+        createdAt: DateTime.parse(json['created_at'] as String),
+        updatedAt: DateTime.parse(json['updated_at'] as String),
+        hashtags: (json['hashtags'] as List<dynamic>?)
+                ?.map((tag) => Hashtag.fromJson(tag as Map<String, dynamic>))
+                .toList() ??
+            [],
+      );
+    } catch (e) {
+      print('Error parsing Paper from JSON: $e');
+      print('JSON data: $json');
+      rethrow;
+    }
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'summary': summary,
+      'content': content,
+      'user_id': userId,
+      'created_at': createdAt.toIso8601String(),
+      'updated_at': updatedAt.toIso8601String(),
+      'hashtags':
+          hashtags.map((tag) => {'id': tag.id, 'name': tag.name}).toList(),
+    };
   }
 }

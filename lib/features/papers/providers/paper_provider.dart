@@ -35,9 +35,26 @@ class PaperProvider with ChangeNotifier {
         queryParameters: queryParams,
       );
 
+      print('Papers response status: ${response.statusCode}');
+      print('Papers response body: ${response.body}');
+
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        _papers = data.map((json) => Paper.fromJson(json)).toList();
+        print('Parsed data length: ${data.length}');
+
+        _papers = [];
+        for (var item in data) {
+          try {
+            final paper = Paper.fromJson(item as Map<String, dynamic>);
+            _papers.add(paper);
+          } catch (e) {
+            print('Error parsing paper: $e');
+            print('Problem item: $item');
+          }
+        }
+
+        print('Successfully parsed ${_papers.length} papers');
+        _error = null;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
@@ -47,10 +64,12 @@ class PaperProvider with ChangeNotifier {
           _error = 'Session expired. Please login again.';
         }
       } else {
-        _error = 'Failed to load papers';
+        _error = 'Failed to load papers: ${response.statusCode}';
       }
-    } catch (e) {
-      _error = e.toString();
+    } catch (e, stackTrace) {
+      print('Error in fetchPapers: $e');
+      print('Stack trace: $stackTrace');
+      _error = 'Error: ${e.toString()}';
     }
 
     _isLoading = false;
@@ -62,8 +81,12 @@ class PaperProvider with ChangeNotifier {
     try {
       final response = await _apiService.get(ApiConstants.paperDetail(id));
 
+      print('Paper detail response status: ${response.statusCode}');
+      print('Paper detail response body: ${response.body}');
+
       if (response.statusCode == 200) {
-        return Paper.fromJson(jsonDecode(response.body));
+        return Paper.fromJson(
+            jsonDecode(response.body) as Map<String, dynamic>);
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
@@ -71,6 +94,7 @@ class PaperProvider with ChangeNotifier {
         }
       }
     } catch (e) {
+      print('Error in fetchPaper: $e');
       _error = e.toString();
       notifyListeners();
     }
@@ -85,6 +109,8 @@ class PaperProvider with ChangeNotifier {
     List<String>? hashtags,
   }) async {
     try {
+      print('Creating paper with title: $title');
+
       final response = await _apiService.post(
         ApiConstants.papers,
         {
@@ -95,6 +121,9 @@ class PaperProvider with ChangeNotifier {
         },
         includeAuth: true,
       );
+
+      print('Create paper response status: ${response.statusCode}');
+      print('Create paper response body: ${response.body}');
 
       if (response.statusCode == 201) {
         await fetchPapers(hashtag: _selectedHashtag);
@@ -110,8 +139,13 @@ class PaperProvider with ChangeNotifier {
             hashtags: hashtags,
           );
         }
+      } else {
+        _error = 'Failed to create paper: ${response.statusCode}';
+        print('Create paper failed: ${response.body}');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('Error in createPaper: $e');
+      print('Stack trace: $stackTrace');
       _error = e.toString();
       notifyListeners();
     }
@@ -155,6 +189,7 @@ class PaperProvider with ChangeNotifier {
         }
       }
     } catch (e) {
+      print('Error in updatePaper: $e');
       _error = e.toString();
       notifyListeners();
     }
@@ -177,6 +212,7 @@ class PaperProvider with ChangeNotifier {
         }
       }
     } catch (e) {
+      print('Error in deletePaper: $e');
       _error = e.toString();
       notifyListeners();
     }
@@ -187,6 +223,9 @@ class PaperProvider with ChangeNotifier {
   Future<void> fetchHashtags() async {
     try {
       final response = await _apiService.get(ApiConstants.hashtags);
+
+      print('Hashtags response status: ${response.statusCode}');
+      print('Hashtags response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
@@ -199,6 +238,7 @@ class PaperProvider with ChangeNotifier {
         }
       }
     } catch (e) {
+      print('Error in fetchHashtags: $e');
       _error = e.toString();
     }
   }
