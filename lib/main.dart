@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+// Core
 import 'core/theme/app_theme.dart';
-import 'features/papers/providers/auth_provider.dart';
-import 'features/papers/providers/paper_provider.dart';
+
+// Services
 import 'shared/services/api_service.dart';
 import 'shared/services/storage_service.dart';
-import 'features/papers/presentation/login_screen.dart';
+
+// Providers
+import 'features/authentication/providers/auth_provider.dart';
+import 'features/papers/providers/paper_provider.dart';
+
+// Screens
+import 'features/authentication/presentation/login_screen.dart';
 import 'features/papers/presentation/papers_list_screen.dart';
 
 void main() {
@@ -19,8 +25,8 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final storage = FlutterSecureStorage();
-    final storageService = StorageService(storage);
+    // 서비스 초기화
+    final storageService = StorageService();
     final apiService = ApiService(storageService);
 
     return MultiProvider(
@@ -28,23 +34,44 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => AuthProvider(apiService, storageService),
         ),
-        ChangeNotifierProxyProvider<AuthProvider, PaperProvider>(
+        ChangeNotifierProvider(
           create: (_) => PaperProvider(apiService),
-          update: (_, auth, previous) => previous ?? PaperProvider(apiService),
         ),
       ],
-      child: Consumer<AuthProvider>(
-        builder: (context, auth, _) {
-          return MaterialApp(
-            title: 'Paperef',
-            theme: AppTheme.lightTheme,
-            home: auth.isAuthenticated
-                ? const PapersListScreen()
-                : const LoginScreen(),
-            debugShowCheckedModeBanner: false,
-          );
-        },
+      child: MaterialApp(
+        title: 'Paperef',
+        theme: AppTheme.lightTheme,
+        home: const AuthenticationWrapper(),
+        debugShowCheckedModeBanner: false,
       ),
+    );
+  }
+}
+
+class AuthenticationWrapper extends StatelessWidget {
+  const AuthenticationWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, _) {
+        // 초기화 중
+        if (!authProvider.isInitialized) {
+          return const Scaffold(
+            body: Center(
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        // 인증 완료
+        if (authProvider.isAuthenticated) {
+          return const PapersListScreen();
+        }
+
+        // 미인증
+        return const LoginScreen();
+      },
     );
   }
 }

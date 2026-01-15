@@ -16,7 +16,7 @@ class ApiService {
 
     if (includeAuth) {
       final token = await _storageService.getAccessToken();
-      if (token != null) {
+      if (token != null && token.isNotEmpty) {
         headers['Authorization'] = 'Bearer $token';
       }
     }
@@ -100,7 +100,12 @@ class ApiService {
   Future<bool> refreshAccessToken() async {
     try {
       final refreshToken = await _storageService.getRefreshToken();
-      if (refreshToken == null) return false;
+      if (refreshToken == null || refreshToken.isEmpty) {
+        print('No refresh token available');
+        return false;
+      }
+
+      print('Attempting to refresh access token...');
 
       final response = await http.post(
         Uri.parse('${ApiConstants.baseUrl}${ApiConstants.refresh}'),
@@ -115,10 +120,14 @@ class ApiService {
         final data = jsonDecode(response.body);
         await _storageService.saveAccessToken(data['access_token']);
         await _storageService.saveRefreshToken(data['refresh_token']);
+        print('Access token refreshed successfully');
         return true;
+      } else {
+        print('Token refresh failed: ${response.statusCode}');
+        return false;
       }
-      return false;
     } catch (e) {
+      print('Error refreshing token: $e');
       return false;
     }
   }

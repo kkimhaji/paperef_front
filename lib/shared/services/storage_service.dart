@@ -1,31 +1,73 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class StorageService {
-  final FlutterSecureStorage _storage;
+  late final FlutterSecureStorage _storage;
 
-  StorageService(this._storage);
+  StorageService() {
+    // 웹에서는 localStorage 사용
+    _storage = FlutterSecureStorage(
+      webOptions: WebOptions(
+        dbName: 'paperef_db',
+        publicKey: 'paperef_public_key',
+      ),
+    );
+  }
 
-  // 토큰 저장
+  // Access Token 저장
   Future<void> saveAccessToken(String token) async {
-    await _storage.write(key: 'access_token', value: token);
+    try {
+      await _storage.write(key: 'access_token', value: token);
+    } catch (e) {
+      print('Error saving access token: $e');
+    }
   }
 
-  Future<void> saveRefreshToken(String token) async {
-    await _storage.write(key: 'refresh_token', value: token);
-  }
-
-  // 토큰 읽기
+  // Access Token 가져오기
   Future<String?> getAccessToken() async {
-    return await _storage.read(key: 'access_token');
+    try {
+      return await _storage.read(key: 'access_token');
+    } catch (e) {
+      print('Error reading access token: $e');
+      return null;
+    }
   }
 
+  // Refresh Token 저장
+  Future<void> saveRefreshToken(String token) async {
+    try {
+      await _storage.write(key: 'refresh_token', value: token);
+    } catch (e) {
+      print('Error saving refresh token: $e');
+    }
+  }
+
+  // Refresh Token 가져오기
   Future<String?> getRefreshToken() async {
-    return await _storage.read(key: 'refresh_token');
+    try {
+      return await _storage.read(key: 'refresh_token');
+    } catch (e) {
+      print('Error reading refresh token: $e');
+      return null;
+    }
   }
 
   // 토큰 삭제
   Future<void> deleteTokens() async {
-    await _storage.delete(key: 'access_token');
-    await _storage.delete(key: 'refresh_token');
+    try {
+      await _storage.delete(key: 'access_token');
+      await _storage.delete(key: 'refresh_token');
+    } catch (e) {
+      print('Error deleting tokens: $e');
+    }
+  }
+
+  // 모든 데이터 삭제
+  Future<void> deleteAll() async {
+    try {
+      await _storage.deleteAll();
+    } catch (e) {
+      print('Error deleting all data: $e');
+    }
   }
 }

@@ -11,22 +11,46 @@ class AuthProvider with ChangeNotifier {
 
   User? _user;
   bool _isLoading = false;
+  bool _isInitialized = false;
   String? _error;
 
   User? get user => _user;
   bool get isAuthenticated => _user != null;
   bool get isLoading => _isLoading;
+  bool get isInitialized => _isInitialized;
   String? get error => _error;
 
   AuthProvider(this._apiService, this._storageService) {
-    _checkAuthStatus();
+    _initializeAuth();
   }
 
-  Future<void> _checkAuthStatus() async {
-    final token = await _storageService.getAccessToken();
-    if (token != null) {
-      await fetchCurrentUser();
+  // 초기화 - 저장된 토큰 확인
+  Future<void> _initializeAuth() async {
+    try {
+      final token = await _storageService.getAccessToken();
+
+      if (token != null && token.isNotEmpty) {
+        print('Found existing token, fetching user info...');
+        await fetchCurrentUser();
+      } else {
+        print('No token found, user needs to login');
+      }
+    } catch (e) {
+      print('Error during auth initialization: $e');
+    } finally {
+      _isInitialized = true;
+      notifyListeners();
     }
+  }
+
+  // 초기화 완료 대기
+  Future<void> waitForInitialization() async {
+    if (_isInitialized) return;
+
+    await Future.doWhile(() async {
+      await Future.delayed(const Duration(milliseconds: 100));
+      return !_isInitialized;
+    });
   }
 
   Future<bool> login(String username, String password) async {
@@ -35,7 +59,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      // OAuth2PasswordRequestForm 형식으로 전송
+      print('Attempting login for: $username');
+
       final response = await _apiService.postFormUrlEncoded(
         ApiConstants.login,
         {
@@ -45,23 +70,30 @@ class AuthProvider with ChangeNotifier {
         },
       );
 
+      print('Login response status: ${response.statusCode}');
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await _storageService.saveAccessToken(data['access_token']);
         await _storageService.saveRefreshToken(data['refresh_token']);
+
+        print('Tokens saved, fetching user info...');
         await fetchCurrentUser();
+
         _isLoading = false;
         notifyListeners();
         return true;
       } else {
         final data = jsonDecode(response.body);
         _error = data['detail'] ?? 'Login failed';
+        print('Login failed: $_error');
         _isLoading = false;
         notifyListeners();
         return false;
       }
     } catch (e) {
       _error = e.toString();
+      print('Login error: $_error');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -74,6 +106,8 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      print('Attempting registration for: $email');
+
       final response = await _apiService.post(
         ApiConstants.register,
         {
@@ -83,6 +117,8 @@ class AuthProvider with ChangeNotifier {
         },
       );
 
+      print('Registration response status: ${response.statusCode}');
+
       if (response.statusCode == 201) {
         _isLoading = false;
         notifyListeners();
@@ -91,12 +127,14 @@ class AuthProvider with ChangeNotifier {
       } else {
         final data = jsonDecode(response.body);
         _error = data['detail'] ?? 'Registration failed';
+        print('Registration failed: $_error');
         _isLoading = false;
         notifyListeners();
         return false;
       }
     } catch (e) {
       _error = e.toString();
+      print('Registration error: $_error');
       _isLoading = false;
       notifyListeners();
       return false;
@@ -110,19 +148,37 @@ class AuthProvider with ChangeNotifier {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         _user = User.fromJson(data);
+        _error = null;
+        print('User info fetched successfully: ${_user?.email}');
         notifyListeners();
       } else if (response.statusCode == 401) {
+        print('Access token expired, attempting refresh...');
         // Access Token 만료 시 Refresh Token으로 갱신 시도
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
+          print('Token refreshed, retrying user fetch...');
           await fetchCurrentUser();
         } else {
-          await logout();
+          print('Token refresh failed, logging out...');
+          await _clearUserData();
         }
+      } else {
+        print('Failed to fetch user: ${response.statusCode}');
+        await _clearUserData();
       }
     } catch (e) {
+      print('Error fetching current user: $e');
       _error = e.toString();
+      // 네트워크 에러 등에서는 로그아웃하지 않음
     }
+  }
+
+  // 사용자 데이터 초기화 (내부 메서드)
+  Future<void> _clearUserData() async {
+    _user = null;
+    _error = null;
+    await _storageService.deleteTokens();
+    notifyListeners();
   }
 
   Future<void> logout() async {
@@ -130,18 +186,19 @@ class AuthProvider with ChangeNotifier {
 
     if (refreshToken != null) {
       try {
+        print('Logging out...');
         await _apiService.post(
           ApiConstants.logout,
           {'refresh_token': refreshToken},
           includeAuth: true,
         );
       } catch (e) {
+        print('Logout API error (ignored): $e');
         // 로그아웃 API 실패해도 로컬 토큰은 삭제
       }
     }
 
-    await _storageService.deleteTokens();
-    _user = null;
-    notifyListeners();
+    await _clearUserData();
+    print('Logout complete');
   }
 }
