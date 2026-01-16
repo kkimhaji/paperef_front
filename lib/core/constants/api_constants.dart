@@ -14,7 +14,7 @@ class ApiConstants {
   static String paperDetail(int id) => '/papers/$id';
 
   // Hashtag endpoints
-  static const String hashtags = '/hashtags/all';
+  static const String hashtags = '/hashtags';
 
   // Group endpoints
   static const String groups = '/groups';
