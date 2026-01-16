@@ -59,8 +59,6 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      print('Attempting login for: $username');
-
       final response = await _apiService.postFormUrlEncoded(
         ApiConstants.login,
         {
@@ -70,14 +68,11 @@ class AuthProvider with ChangeNotifier {
         },
       );
 
-      print('Login response status: ${response.statusCode}');
-
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await _storageService.saveAccessToken(data['access_token']);
         await _storageService.saveRefreshToken(data['refresh_token']);
 
-        print('Tokens saved, fetching user info...');
         await fetchCurrentUser();
 
         _isLoading = false;
@@ -106,8 +101,6 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      print('Attempting registration for: $email');
-
       final response = await _apiService.post(
         ApiConstants.register,
         {
@@ -116,8 +109,6 @@ class AuthProvider with ChangeNotifier {
           'password': password,
         },
       );
-
-      print('Registration response status: ${response.statusCode}');
 
       if (response.statusCode == 201) {
         _isLoading = false;
@@ -149,7 +140,6 @@ class AuthProvider with ChangeNotifier {
         final data = jsonDecode(response.body);
         _user = User.fromJson(data);
         _error = null;
-        print('User info fetched successfully: ${_user?.email}');
         notifyListeners();
       } else if (response.statusCode == 401) {
         print('Access token expired, attempting refresh...');
