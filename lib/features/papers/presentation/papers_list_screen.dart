@@ -171,7 +171,6 @@ class _PapersListScreenState extends State<PapersListScreen> {
                               ),
                             );
 
-                            // 상세 화면에서 돌아왔을 때 변경사항이 있으면 새로고침
                             if (result == true) {
                               _refreshPapers();
                             }
@@ -184,7 +183,7 @@ class _PapersListScreenState extends State<PapersListScreen> {
                                 Row(
                                   children: [
                                     Expanded(
-                                      child: Text(
+                                      child: SelectableText(
                                         paper.title,
                                         style: Theme.of(context)
                                             .textTheme
@@ -260,22 +259,33 @@ class _PapersListScreenState extends State<PapersListScreen> {
                                 if (paper.summary != null &&
                                     paper.summary!.isNotEmpty) ...[
                                   const SizedBox(height: 8),
-                                  Text(
+                                  SelectableText(
                                     paper.summary!,
                                     maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style:
-                                        Theme.of(context).textTheme.bodyMedium,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
                                   ),
                                 ],
                                 if (paper.hashtags.isNotEmpty) ...[
                                   const SizedBox(height: 8),
                                   Wrap(
                                     spacing: 8,
+                                    runSpacing: 4,
                                     children: paper.hashtags.map((hashtag) {
-                                      return Chip(
-                                        label: Text('#${hashtag.name}'),
-                                        visualDensity: VisualDensity.compact,
+                                      return Text(
+                                        '#${hashtag.name}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .bodySmall
+                                            ?.copyWith(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                            ),
                                       );
                                     }).toList(),
                                   ),

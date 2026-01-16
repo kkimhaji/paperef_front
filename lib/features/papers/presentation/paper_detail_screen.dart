@@ -42,14 +42,12 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
   Future<void> _navigateToEdit() async {
     if (_paper == null) return;
 
-    // 이미 _paper에 전체 데이터가 있으므로 바로 전달
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => EditPaperScreen(paper: _paper!), // 전체 Paper 객체 전달
+        builder: (_) => EditPaperScreen(paper: _paper!),
       ),
     );
 
-    // 편집 후 돌아왔을 때 데이터 새로고침
     if (result == true && mounted) {
       await _loadPaper();
     }
@@ -81,7 +79,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
           await context.read<PaperProvider>().deletePaper(widget.paperId);
 
       if (success && mounted) {
-        Navigator.of(context).pop(true); // 목록 화면으로 돌아가며 새로고침 신호
+        Navigator.of(context).pop(true);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Failed to delete paper')),
@@ -136,8 +134,8 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 제목
-              Text(
+              // 제목 - 선택 가능
+              SelectableText(
                 _paper!.title,
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
@@ -156,8 +154,14 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
               if (_paper!.hashtags.isNotEmpty) ...[
                 Wrap(
                   spacing: 8,
+                  runSpacing: 8,
                   children: _paper!.hashtags.map((hashtag) {
-                    return Chip(label: Text('#${hashtag.name}'));
+                    return SelectableText(
+                      '#${hashtag.name}',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                    );
                   }).toList(),
                 ),
                 const SizedBox(height: 24),
@@ -179,7 +183,10 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                     color: Colors.grey[100],
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(_paper!.summary!),
+                  child: SelectableText(
+                    _paper!.summary!,
+                    style: Theme.of(context).textTheme.bodyLarge,
+                  ),
                 ),
                 const SizedBox(height: 24),
               ],
@@ -193,9 +200,11 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                       ),
                 ),
                 const SizedBox(height: 8),
-                Text(
+                SelectableText(
                   _paper!.content!,
-                  style: Theme.of(context).textTheme.bodyLarge,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        height: 1.6,
+                      ),
                 ),
               ],
             ],
