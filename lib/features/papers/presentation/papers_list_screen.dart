@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/paper_provider.dart';
 import '../../authentication/providers/auth_provider.dart';
+import '../../groups/providers/group_provider.dart';
+import '../../groups/presentation/app_drawer.dart';
 import 'paper_detail_screen.dart';
 import 'create_paper_screen.dart';
 import 'edit_paper_screen.dart';
@@ -20,16 +22,20 @@ class _PapersListScreenState extends State<PapersListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<PaperProvider>().fetchPapers();
       context.read<PaperProvider>().fetchHashtags();
+      context.read<GroupProvider>().fetchGroups();
     });
   }
 
   Future<void> _refreshPapers() async {
-    await context.read<PaperProvider>().fetchPapers();
+    final groupProvider = context.read<GroupProvider>();
+    final groupId = groupProvider.selectedGroupId;
+
+    await context.read<PaperProvider>().fetchPapers(groupId: groupId);
     await context.read<PaperProvider>().fetchHashtags();
+    await context.read<GroupProvider>().fetchGroups();
   }
 
   Future<void> _navigateToEdit(int paperId) async {
-    // 로딩 표시
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -38,17 +44,15 @@ class _PapersListScreenState extends State<PapersListScreen> {
       ),
     );
 
-    // 전체 데이터 가져오기 (content 포함)
     final paper = await context.read<PaperProvider>().fetchPaper(paperId);
 
     if (mounted) {
-      Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+      Navigator.of(context).pop();
 
       if (paper != null) {
-        // Paper 객체 전달
         final result = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
-            builder: (_) => EditPaperScreen(paper: paper), // 전체 Paper 객체 전달
+            builder: (_) => EditPaperScreen(paper: paper),
           ),
         );
 
@@ -63,24 +67,34 @@ class _PapersListScreenState extends State<PapersListScreen> {
     }
   }
 
+  String _getTitle() {
+    final groupProvider = context.watch<GroupProvider>();
+    if (groupProvider.selectedGroupId == null) {
+      return 'All Refers';
+    } else if (groupProvider.selectedGroupId == 0) {
+      return 'Ungrouped';
+    } else {
+      final group = groupProvider.groups.firstWhere(
+        (g) => g.id == groupProvider.selectedGroupId,
+        orElse: () => groupProvider.groups.first,
+      );
+      return group.name;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Paperef'),
+        title: Text(_getTitle()),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refreshPapers,
           ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () async {
-              await context.read<AuthProvider>().logout();
-            },
-          ),
         ],
       ),
+      drawer: const AppDrawer(),
       body: Column(
         children: [
           // 해시태그 필터
@@ -111,7 +125,10 @@ class _PapersListScreenState extends State<PapersListScreen> {
                           label: Text('#$hashtag'),
                           selected: paperProvider.selectedHashtag == hashtag,
                           onSelected: (_) {
-                            paperProvider.fetchPapers(hashtag: hashtag);
+                            final groupId =
+                                context.read<GroupProvider>().selectedGroupId;
+                            paperProvider.fetchPapers(
+                                hashtag: hashtag, groupId: groupId);
                           },
                         ),
                       );
@@ -148,7 +165,7 @@ class _PapersListScreenState extends State<PapersListScreen> {
 
                 if (paperProvider.papers.isEmpty) {
                   return const Center(
-                    child: Text('No papers found. Create your first paper!'),
+                    child: Text('No refs found. Create your first paper!'),
                   );
                 }
 
@@ -201,7 +218,7 @@ class _PapersListScreenState extends State<PapersListScreen> {
                                             builder: (context) => AlertDialog(
                                               title: const Text('Delete Paper'),
                                               content: const Text(
-                                                  'Are you sure you want to delete this paper?'),
+                                                  'Are you sure you want to delete this ref?'),
                                               actions: [
                                                 TextButton(
                                                   onPressed: () =>

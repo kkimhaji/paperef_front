@@ -17,7 +17,8 @@ class Paper {
   final String title;
   final String? summary;
   final String? content;
-  final int userId;
+  final int? userId;
+  final int? groupId; // 추가
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<Hashtag> hashtags;
@@ -27,7 +28,8 @@ class Paper {
     required this.title,
     this.summary,
     this.content,
-    required this.userId,
+    this.userId,
+    this.groupId, // 추가
     required this.createdAt,
     required this.updatedAt,
     this.hashtags = const [],
@@ -40,7 +42,8 @@ class Paper {
         title: json['title'] as String,
         summary: json['summary'] as String?,
         content: json['content'] as String?,
-        userId: json['user_id'] as int,
+        userId: json['user_id'] as int?,
+        groupId: json['group_id'] as int?, // 추가
         createdAt: DateTime.parse(json['created_at'] as String),
         updatedAt: DateTime.parse(json['updated_at'] as String),
         hashtags: (json['hashtags'] as List<dynamic>?)
@@ -61,7 +64,8 @@ class Paper {
       'title': title,
       'summary': summary,
       'content': content,
-      'user_id': userId,
+      if (userId != null) 'user_id': userId,
+      if (groupId != null) 'group_id': groupId, // 추가
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'hashtags':

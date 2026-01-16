@@ -22,25 +22,24 @@ class PaperProvider with ChangeNotifier {
   PaperProvider(this._apiService);
 
   // 논문 목록 조회
-  Future<void> fetchPapers({String? hashtag}) async {
+  Future<void> fetchPapers({String? hashtag, int? groupId}) async {
     _isLoading = true;
     _error = null;
     _selectedHashtag = hashtag;
     notifyListeners();
 
     try {
-      final queryParams = hashtag != null ? {'hashtag': hashtag} : null;
+      final queryParams = <String, String>{};
+      if (hashtag != null) queryParams['hashtag'] = hashtag;
+      if (groupId != null) queryParams['group_id'] = groupId.toString();
+
       final response = await _apiService.get(
         ApiConstants.papers,
-        queryParameters: queryParams,
+        queryParameters: queryParams.isEmpty ? null : queryParams,
       );
-
-      print('Papers response status: ${response.statusCode}');
-      print('Papers response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        print('Parsed data length: ${data.length}');
 
         _papers = [];
         for (var item in data) {
@@ -53,7 +52,6 @@ class PaperProvider with ChangeNotifier {
           }
         }
 
-        print('Successfully parsed ${_papers.length} papers');
         _error = null;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
@@ -81,9 +79,6 @@ class PaperProvider with ChangeNotifier {
     try {
       final response = await _apiService.get(ApiConstants.paperDetail(id));
 
-      print('Paper detail response status: ${response.statusCode}');
-      print('Paper detail response body: ${response.body}');
-
       if (response.statusCode == 200) {
         return Paper.fromJson(
             jsonDecode(response.body) as Map<String, dynamic>);
@@ -106,25 +101,21 @@ class PaperProvider with ChangeNotifier {
     required String title,
     String? summary,
     String? content,
+    int? groupId, // 추가
     List<String>? hashtags,
   }) async {
     try {
-      print('Creating paper with title: $title');
-
       final response = await _apiService.post(
         ApiConstants.papers,
         {
           'title': title,
           'summary': summary,
           'content': content,
+          'group_id': groupId, // 추가
           'hashtags': hashtags ?? [],
         },
         includeAuth: true,
       );
-
-      print('Create paper response status: ${response.statusCode}');
-      print('Create paper response body: ${response.body}');
-
       if (response.statusCode == 201) {
         await fetchPapers(hashtag: _selectedHashtag);
         await fetchHashtags();
@@ -158,6 +149,7 @@ class PaperProvider with ChangeNotifier {
     String? title,
     String? summary,
     String? content,
+    int? groupId, // 추가
     List<String>? hashtags,
   }) async {
     try {
@@ -165,6 +157,7 @@ class PaperProvider with ChangeNotifier {
       if (title != null) body['title'] = title;
       if (summary != null) body['summary'] = summary;
       if (content != null) body['content'] = content;
+      if (groupId != null) body['group_id'] = groupId; // 추가
       if (hashtags != null) body['hashtags'] = hashtags;
 
       final response = await _apiService.put(
@@ -223,9 +216,6 @@ class PaperProvider with ChangeNotifier {
   Future<void> fetchHashtags() async {
     try {
       final response = await _apiService.get(ApiConstants.hashtags);
-
-      print('Hashtags response status: ${response.statusCode}');
-      print('Hashtags response body: ${response.body}');
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);

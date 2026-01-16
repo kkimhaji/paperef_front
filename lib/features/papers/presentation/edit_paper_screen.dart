@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/paper_provider.dart';
 import '../../../shared/models/paper.dart';
+import '../../groups/providers/group_provider.dart';
 
 class EditPaperScreen extends StatefulWidget {
   final Paper paper;
@@ -20,6 +21,7 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
   final _hashtagController = TextEditingController();
   late List<String> _hashtags;
   bool _isSaving = false;
+  int? _selectedGroupId;
 
   @override
   void initState() {
@@ -31,6 +33,7 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
     _contentController =
         TextEditingController(text: widget.paper.content ?? '');
     _hashtags = widget.paper.hashtags.map((tag) => tag.name).toList();
+    _selectedGroupId = widget.paper.groupId;
   }
 
   @override
@@ -73,6 +76,7 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
             content: _contentController.text.isEmpty
                 ? null
                 : _contentController.text,
+            groupId: _selectedGroupId,
             hashtags: _hashtags,
           );
 
@@ -85,7 +89,7 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
           Navigator.of(context).pop(true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to update paper')),
+            const SnackBar(content: Text('Failed to update ref')),
           );
         }
       }
@@ -165,6 +169,36 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            Consumer<GroupProvider>(
+              builder: (context, groupProvider, _) {
+                return DropdownButtonFormField<int?>(
+                  value: _selectedGroupId,
+                  decoration: const InputDecoration(
+                    labelText: 'Group (Optional)',
+                    hintText: 'Select a group',
+                  ),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('No Group'),
+                    ),
+                    ...groupProvider.groups.map((group) {
+                      return DropdownMenuItem<int?>(
+                        value: group.id,
+                        child: Text(group.name),
+                      );
+                    }),
+                  ],
+                  onChanged: _isSaving
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _selectedGroupId = value;
+                          });
+                        },
+                );
+              },
+            ),
             TextFormField(
               controller: _titleController,
               decoration: const InputDecoration(

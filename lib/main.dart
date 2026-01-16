@@ -11,7 +11,7 @@ import 'shared/services/storage_service.dart';
 // Providers
 import 'features/authentication/providers/auth_provider.dart';
 import 'features/papers/providers/paper_provider.dart';
-
+import 'features/groups/providers/group_provider.dart';
 // Screens
 import 'features/authentication/presentation/login_screen.dart';
 import 'features/papers/presentation/papers_list_screen.dart';
@@ -36,6 +36,9 @@ class MyApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (_) => PaperProvider(apiService),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => GroupProvider(apiService), // 추가
         ),
       ],
       child: MaterialApp(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/paper_provider.dart';
+import '../../groups/providers/group_provider.dart';
 
 class CreatePaperScreen extends StatefulWidget {
   const CreatePaperScreen({super.key});
@@ -16,6 +17,7 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
   final _contentController = TextEditingController();
   final _hashtagController = TextEditingController();
   final List<String> _hashtags = [];
+  int? _selectedGroupId;
 
   @override
   void dispose() {
@@ -52,6 +54,7 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
             content: _contentController.text.isEmpty
                 ? null
                 : _contentController.text,
+            groupId: _selectedGroupId,
             hashtags: _hashtags,
           );
 
@@ -78,6 +81,36 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // 그룹 선택
+            Consumer<GroupProvider>(
+              builder: (context, groupProvider, _) {
+                return DropdownButtonFormField<int?>(
+                  value: _selectedGroupId,
+                  decoration: const InputDecoration(
+                    labelText: 'Group (Optional)',
+                    hintText: 'Select a group',
+                  ),
+                  items: [
+                    const DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('No Group'),
+                    ),
+                    ...groupProvider.groups.map((group) {
+                      return DropdownMenuItem<int?>(
+                        value: group.id,
+                        child: Text(group.name),
+                      );
+                    }),
+                  ],
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedGroupId = value;
+                    });
+                  },
+                );
+              },
+            ),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _titleController,
               decoration: const InputDecoration(
