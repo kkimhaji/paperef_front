@@ -9,9 +9,9 @@ class ApiConstants {
   static const String logout = '/auth/logout';
   static const String me = '/auth/me';
 
-  // Paper endpoints
-  static const String papers = '/papers';
-  static String paperDetail(int id) => '/papers/$id';
+  // Ref endpoints
+  static const String refs = '/refs';
+  static String refDetail(int id) => '/refs/$id';
 
   // Hashtag endpoints
   static const String hashtags = '/hashtags';

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/group_provider.dart';
-import '../../../features/papers/providers/paper_provider.dart';
+import '../../../features/refs/providers/ref_provider.dart';
 import '../../../features/authentication/providers/auth_provider.dart';
 import 'create_group_dialog.dart';
 import 'edit_group_dialog.dart';
@@ -17,7 +17,6 @@ class AppDrawer extends StatelessWidget {
           return ListView(
             padding: EdgeInsets.zero,
             children: [
-              // 헤더
               DrawerHeader(
                 decoration: BoxDecoration(
                   color: Theme.of(context).colorScheme.primary,
@@ -44,34 +43,27 @@ class AppDrawer extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // 전체 메모
               ListTile(
                 leading: const Icon(Icons.all_inbox),
-                title: const Text('All Papers'),
+                title: const Text('All References'),
                 selected: groupProvider.selectedGroupId == null,
                 onTap: () {
                   groupProvider.selectGroup(null);
-                  context.read<PaperProvider>().fetchPapers();
+                  context.read<RefProvider>().fetchRefs();
                   Navigator.pop(context);
                 },
               ),
-
-              // 그룹 없는 메모
               ListTile(
                 leading: const Icon(Icons.inbox),
                 title: const Text('Ungrouped'),
                 selected: groupProvider.selectedGroupId == 0,
                 onTap: () {
                   groupProvider.selectGroup(0);
-                  context.read<PaperProvider>().fetchPapers(groupId: 0);
+                  context.read<RefProvider>().fetchRefs(groupId: 0);
                   Navigator.pop(context);
                 },
               ),
-
               const Divider(),
-
-              // 그룹 헤더
               Padding(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -97,8 +89,6 @@ class AppDrawer extends StatelessWidget {
                   ],
                 ),
               ),
-
-              // 그룹 목록
               if (groupProvider.isLoading)
                 const Padding(
                   padding: EdgeInsets.all(16),
@@ -124,7 +114,7 @@ class AppDrawer extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          '${group.paperCount}',
+                          '${group.refCount}',
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
                         PopupMenuButton<String>(
@@ -140,7 +130,7 @@ class AppDrawer extends StatelessWidget {
                                 builder: (context) => AlertDialog(
                                   title: const Text('Delete Group'),
                                   content: Text(
-                                    'Are you sure you want to delete "${group.name}"? Papers in this group will not be deleted.',
+                                    'Are you sure you want to delete "${group.name}"? References in this group will not be deleted.',
                                   ),
                                   actions: [
                                     TextButton(
@@ -181,17 +171,12 @@ class AppDrawer extends StatelessWidget {
                     selected: groupProvider.selectedGroupId == group.id,
                     onTap: () {
                       groupProvider.selectGroup(group.id);
-                      context
-                          .read<PaperProvider>()
-                          .fetchPapers(groupId: group.id);
+                      context.read<RefProvider>().fetchRefs(groupId: group.id);
                       Navigator.pop(context);
                     },
                   );
                 }),
-
               const Divider(),
-
-              // 로그아웃
               ListTile(
                 leading: const Icon(Icons.logout),
                 title: const Text('Logout'),

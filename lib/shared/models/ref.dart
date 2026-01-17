@@ -12,38 +12,38 @@ class Hashtag {
   }
 }
 
-class Paper {
+class Ref {
   final int id;
   final String title;
   final String? summary;
   final String? content;
   final int? userId;
-  final int? groupId; // 추가
+  final int? groupId;
   final DateTime createdAt;
   final DateTime updatedAt;
   final List<Hashtag> hashtags;
 
-  Paper({
+  Ref({
     required this.id,
     required this.title,
     this.summary,
     this.content,
     this.userId,
-    this.groupId, // 추가
+    this.groupId,
     required this.createdAt,
     required this.updatedAt,
     this.hashtags = const [],
   });
 
-  factory Paper.fromJson(Map<String, dynamic> json) {
+  factory Ref.fromJson(Map<String, dynamic> json) {
     try {
-      return Paper(
+      return Ref(
         id: json['id'] as int,
         title: json['title'] as String,
         summary: json['summary'] as String?,
         content: json['content'] as String?,
         userId: json['user_id'] as int?,
-        groupId: json['group_id'] as int?, // 추가
+        groupId: json['group_id'] as int?,
         createdAt: DateTime.parse(json['created_at'] as String),
         updatedAt: DateTime.parse(json['updated_at'] as String),
         hashtags: (json['hashtags'] as List<dynamic>?)
@@ -52,7 +52,7 @@ class Paper {
             [],
       );
     } catch (e) {
-      print('Error parsing Paper from JSON: $e');
+      print('Error parsing Ref from JSON: $e');
       print('JSON data: $json');
       rethrow;
     }
@@ -65,7 +65,7 @@ class Paper {
       'summary': summary,
       'content': content,
       if (userId != null) 'user_id': userId,
-      if (groupId != null) 'group_id': groupId, // 추가
+      if (groupId != null) 'group_id': groupId,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'hashtags':

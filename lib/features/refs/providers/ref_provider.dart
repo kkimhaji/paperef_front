@@ -1,28 +1,28 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import '../../../shared/services/api_service.dart';
-import '../../../shared/models/paper.dart';
+import '../../../shared/models/ref.dart';
 import '../../../core/constants/api_constants.dart';
 
-class PaperProvider with ChangeNotifier {
+class RefProvider with ChangeNotifier {
   final ApiService _apiService;
 
-  List<Paper> _papers = [];
-  List<String> _hashtags = [];
+  List<Ref> _refs = [];
   bool _isLoading = false;
   String? _error;
   String? _selectedHashtag;
+  List<String> _hashtags = [];
 
-  List<Paper> get papers => _papers;
-  List<String> get hashtags => _hashtags;
+  List<Ref> get refs => _refs;
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get selectedHashtag => _selectedHashtag;
+  List<String> get hashtags => _hashtags;
 
-  PaperProvider(this._apiService);
+  RefProvider(this._apiService);
 
-  // 논문 목록 조회
-  Future<void> fetchPapers({String? hashtag, int? groupId}) async {
+  // 레퍼런스 목록 조회
+  Future<void> fetchRefs({String? hashtag, int? groupId}) async {
     _isLoading = true;
     _error = null;
     _selectedHashtag = hashtag;
@@ -34,122 +34,114 @@ class PaperProvider with ChangeNotifier {
       if (groupId != null) queryParams['group_id'] = groupId.toString();
 
       final response = await _apiService.get(
-        ApiConstants.papers,
+        ApiConstants.refs,
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-
-        _papers = [];
-        for (var item in data) {
-          try {
-            final paper = Paper.fromJson(item as Map<String, dynamic>);
-            _papers.add(paper);
-          } catch (e) {
-            print('Error parsing paper: $e');
-            print('Problem item: $item');
-          }
-        }
-
+        _refs = data
+            .map((item) => Ref.fromJson(item as Map<String, dynamic>))
+            .toList();
         _error = null;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
-          await fetchPapers(hashtag: hashtag);
+          await fetchRefs(hashtag: hashtag, groupId: groupId);
           return;
         } else {
           _error = 'Session expired. Please login again.';
         }
       } else {
-        _error = 'Failed to load papers: ${response.statusCode}';
+        _error = 'Failed to load refs: ${response.statusCode}';
       }
-    } catch (e, stackTrace) {
-      print('Error in fetchPapers: $e');
-      print('Stack trace: $stackTrace');
-      _error = 'Error: ${e.toString()}';
+    } catch (e) {
+      print('Error in fetchRefs: $e');
+      _error = e.toString();
     }
 
     _isLoading = false;
     notifyListeners();
   }
 
-  // 논문 상세 조회
-  Future<Paper?> fetchPaper(int id) async {
+  // 특정 레퍼런스 조회
+  Future<Ref?> fetchRef(int id) async {
     try {
-      final response = await _apiService.get(ApiConstants.paperDetail(id));
+      final response = await _apiService.get(ApiConstants.refDetail(id));
 
       if (response.statusCode == 200) {
-        return Paper.fromJson(
-            jsonDecode(response.body) as Map<String, dynamic>);
+        final data = jsonDecode(response.body);
+        return Ref.fromJson(data as Map<String, dynamic>);
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
-          return await fetchPaper(id);
+          return await fetchRef(id);
         }
       }
     } catch (e) {
-      print('Error in fetchPaper: $e');
-      _error = e.toString();
-      notifyListeners();
+      print('Error in fetchRef: $e');
     }
     return null;
   }
 
-  // 논문 생성
-  Future<bool> createPaper({
+  // 레퍼런스 생성
+  Future<bool> createRef({
     required String title,
     String? summary,
     String? content,
-    int? groupId, // 추가
+    int? groupId,
     List<String>? hashtags,
   }) async {
     try {
       final response = await _apiService.post(
-        ApiConstants.papers,
+        ApiConstants.refs,
         {
           'title': title,
           'summary': summary,
           'content': content,
-          'group_id': groupId, // 추가
+          'group_id': groupId,
           'hashtags': hashtags ?? [],
         },
         includeAuth: true,
       );
+
+      print('Create ref response status: ${response.statusCode}');
+
       if (response.statusCode == 201) {
-        await fetchPapers(hashtag: _selectedHashtag);
+        await fetchRefs();
         await fetchHashtags();
         return true;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
-          return await createPaper(
+          return await createRef(
             title: title,
             summary: summary,
             content: content,
+            groupId: groupId,
             hashtags: hashtags,
           );
         }
       } else {
-        _error = 'Failed to create paper: ${response.statusCode}';
-        print('Create paper failed: ${response.body}');
+        final data = jsonDecode(response.body);
+        _error = data['detail'] ?? 'Failed to create ref';
+        print('Create ref failed: $_error');
       }
-    } catch (e, stackTrace) {
-      print('Error in createPaper: $e');
-      print('Stack trace: $stackTrace');
+    } catch (e) {
+      print('Error in createRef: $e');
       _error = e.toString();
       notifyListeners();
     }
     return false;
   }
 
-  // 논문 수정
-  Future<bool> updatePaper({
+  // 레퍼런스 수정
+  Future<bool> updateRef({
     required int id,
     String? title,
     String? summary,
     String? content,
-    int? groupId, // 추가
+    int? groupId,
     List<String>? hashtags,
   }) async {
     try {
@@ -157,55 +149,56 @@ class PaperProvider with ChangeNotifier {
       if (title != null) body['title'] = title;
       if (summary != null) body['summary'] = summary;
       if (content != null) body['content'] = content;
-      if (groupId != null) body['group_id'] = groupId; // 추가
+      if (groupId != null) body['group_id'] = groupId;
       if (hashtags != null) body['hashtags'] = hashtags;
 
       final response = await _apiService.put(
-        ApiConstants.paperDetail(id),
+        ApiConstants.refDetail(id),
         body,
       );
 
       if (response.statusCode == 200) {
-        await fetchPapers(hashtag: _selectedHashtag);
+        await fetchRefs();
         await fetchHashtags();
         return true;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
-          return await updatePaper(
+          return await updateRef(
             id: id,
             title: title,
             summary: summary,
             content: content,
+            groupId: groupId,
             hashtags: hashtags,
           );
         }
       }
     } catch (e) {
-      print('Error in updatePaper: $e');
+      print('Error in updateRef: $e');
       _error = e.toString();
       notifyListeners();
     }
     return false;
   }
 
-  // 논문 삭제
-  Future<bool> deletePaper(int id) async {
+  // 레퍼런스 삭제
+  Future<bool> deleteRef(int id) async {
     try {
-      final response = await _apiService.delete(ApiConstants.paperDetail(id));
+      final response = await _apiService.delete(ApiConstants.refDetail(id));
 
       if (response.statusCode == 204) {
-        await fetchPapers(hashtag: _selectedHashtag);
+        await fetchRefs();
         await fetchHashtags();
         return true;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
-          return await deletePaper(id);
+          return await deleteRef(id);
         }
       }
     } catch (e) {
-      print('Error in deletePaper: $e');
+      print('Error in deleteRef: $e');
       _error = e.toString();
       notifyListeners();
     }
@@ -219,8 +212,7 @@ class PaperProvider with ChangeNotifier {
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        _hashtags = data.cast<String>();
-        notifyListeners();
+        _hashtags = data.map((item) => item.toString()).toList();
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
@@ -229,13 +221,12 @@ class PaperProvider with ChangeNotifier {
       }
     } catch (e) {
       print('Error in fetchHashtags: $e');
-      _error = e.toString();
     }
   }
 
   // 필터 초기화
   void clearFilter() {
     _selectedHashtag = null;
-    fetchPapers();
+    fetchRefs();
   }
 }

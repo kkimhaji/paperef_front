@@ -1,41 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/paper_provider.dart';
+import '../providers/ref_provider.dart';
 import '../../authentication/providers/auth_provider.dart';
 import '../../groups/providers/group_provider.dart';
 import '../../groups/presentation/app_drawer.dart';
-import 'paper_detail_screen.dart';
-import 'create_paper_screen.dart';
-import 'edit_paper_screen.dart';
+import 'ref_detail_screen.dart';
+import 'create_ref_screen.dart';
+import 'edit_ref_screen.dart';
 
-class PapersListScreen extends StatefulWidget {
-  const PapersListScreen({super.key});
+class RefsListScreen extends StatefulWidget {
+  const RefsListScreen({super.key});
 
   @override
-  State<PapersListScreen> createState() => _PapersListScreenState();
+  State<RefsListScreen> createState() => _RefsListScreenState();
 }
 
-class _PapersListScreenState extends State<PapersListScreen> {
+class _RefsListScreenState extends State<RefsListScreen> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<PaperProvider>().fetchPapers();
-      context.read<PaperProvider>().fetchHashtags();
+      context.read<RefProvider>().fetchRefs();
+      context.read<RefProvider>().fetchHashtags();
       context.read<GroupProvider>().fetchGroups();
     });
   }
 
-  Future<void> _refreshPapers() async {
+  Future<void> _refreshRefs() async {
     final groupProvider = context.read<GroupProvider>();
     final groupId = groupProvider.selectedGroupId;
 
-    await context.read<PaperProvider>().fetchPapers(groupId: groupId);
-    await context.read<PaperProvider>().fetchHashtags();
+    await context.read<RefProvider>().fetchRefs(groupId: groupId);
+    await context.read<RefProvider>().fetchHashtags();
     await context.read<GroupProvider>().fetchGroups();
   }
 
-  Future<void> _navigateToEdit(int paperId) async {
+  Future<void> _navigateToEdit(int refId) async {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -44,24 +44,24 @@ class _PapersListScreenState extends State<PapersListScreen> {
       ),
     );
 
-    final paper = await context.read<PaperProvider>().fetchPaper(paperId);
+    final ref = await context.read<RefProvider>().fetchRef(refId);
 
     if (mounted) {
       Navigator.of(context).pop();
 
-      if (paper != null) {
+      if (ref != null) {
         final result = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
-            builder: (_) => EditPaperScreen(paper: paper),
+            builder: (_) => EditRefScreen(ref: ref),
           ),
         );
 
         if (result == true) {
-          _refreshPapers();
+          _refreshRefs();
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to load paper details')),
+          const SnackBar(content: Text('Failed to load reference details')),
         );
       }
     }
@@ -70,7 +70,7 @@ class _PapersListScreenState extends State<PapersListScreen> {
   String _getTitle() {
     final groupProvider = context.watch<GroupProvider>();
     if (groupProvider.selectedGroupId == null) {
-      return 'All Refers';
+      return 'All References';
     } else if (groupProvider.selectedGroupId == 0) {
       return 'Ungrouped';
     } else {
@@ -90,7 +90,7 @@ class _PapersListScreenState extends State<PapersListScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: _refreshPapers,
+            onPressed: _refreshRefs,
           ),
         ],
       ),
@@ -98,9 +98,9 @@ class _PapersListScreenState extends State<PapersListScreen> {
       body: Column(
         children: [
           // 해시태그 필터
-          Consumer<PaperProvider>(
-            builder: (context, paperProvider, _) {
-              if (paperProvider.hashtags.isEmpty) {
+          Consumer<RefProvider>(
+            builder: (context, refProvider, _) {
+              if (refProvider.hashtags.isEmpty) {
                 return const SizedBox.shrink();
               }
 
@@ -112,22 +112,22 @@ class _PapersListScreenState extends State<PapersListScreen> {
                   children: [
                     FilterChip(
                       label: const Text('All'),
-                      selected: paperProvider.selectedHashtag == null,
+                      selected: refProvider.selectedHashtag == null,
                       onSelected: (_) {
-                        paperProvider.clearFilter();
+                        refProvider.clearFilter();
                       },
                     ),
                     const SizedBox(width: 8),
-                    ...paperProvider.hashtags.map((hashtag) {
+                    ...refProvider.hashtags.map((hashtag) {
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: FilterChip(
                           label: Text('#$hashtag'),
-                          selected: paperProvider.selectedHashtag == hashtag,
+                          selected: refProvider.selectedHashtag == hashtag,
                           onSelected: (_) {
                             final groupId =
                                 context.read<GroupProvider>().selectedGroupId;
-                            paperProvider.fetchPapers(
+                            refProvider.fetchRefs(
                                 hashtag: hashtag, groupId: groupId);
                           },
                         ),
@@ -139,23 +139,23 @@ class _PapersListScreenState extends State<PapersListScreen> {
             },
           ),
           const Divider(height: 1),
-          // 논문 목록
+          // 레퍼런스 목록
           Expanded(
-            child: Consumer<PaperProvider>(
-              builder: (context, paperProvider, _) {
-                if (paperProvider.isLoading) {
+            child: Consumer<RefProvider>(
+              builder: (context, refProvider, _) {
+                if (refProvider.isLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                if (paperProvider.error != null) {
+                if (refProvider.error != null) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Error: ${paperProvider.error}'),
+                        Text('Error: ${refProvider.error}'),
                         const SizedBox(height: 16),
                         ElevatedButton(
-                          onPressed: _refreshPapers,
+                          onPressed: _refreshRefs,
                           child: const Text('Retry'),
                         ),
                       ],
@@ -163,19 +163,20 @@ class _PapersListScreenState extends State<PapersListScreen> {
                   );
                 }
 
-                if (paperProvider.papers.isEmpty) {
+                if (refProvider.refs.isEmpty) {
                   return const Center(
-                    child: Text('No refs found. Create your first paper!'),
+                    child: Text(
+                        'No references found. Create your first reference!'),
                   );
                 }
 
                 return RefreshIndicator(
-                  onRefresh: _refreshPapers,
+                  onRefresh: _refreshRefs,
                   child: ListView.builder(
                     padding: const EdgeInsets.all(16),
-                    itemCount: paperProvider.papers.length,
+                    itemCount: refProvider.refs.length,
                     itemBuilder: (context, index) {
-                      final paper = paperProvider.papers[index];
+                      final ref = refProvider.refs[index];
                       return Card(
                         margin: const EdgeInsets.only(bottom: 16),
                         child: InkWell(
@@ -183,13 +184,12 @@ class _PapersListScreenState extends State<PapersListScreen> {
                             final result =
                                 await Navigator.of(context).push<bool>(
                               MaterialPageRoute(
-                                builder: (_) =>
-                                    PaperDetailScreen(paperId: paper.id),
+                                builder: (_) => RefDetailScreen(refId: ref.id),
                               ),
                             );
 
                             if (result == true) {
-                              _refreshPapers();
+                              _refreshRefs();
                             }
                           },
                           child: Padding(
@@ -201,7 +201,7 @@ class _PapersListScreenState extends State<PapersListScreen> {
                                   children: [
                                     Expanded(
                                       child: SelectableText(
-                                        paper.title,
+                                        ref.title,
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleLarge,
@@ -210,15 +210,16 @@ class _PapersListScreenState extends State<PapersListScreen> {
                                     PopupMenuButton<String>(
                                       onSelected: (value) async {
                                         if (value == 'edit') {
-                                          await _navigateToEdit(paper.id);
+                                          await _navigateToEdit(ref.id);
                                         } else if (value == 'delete') {
                                           final confirmed =
                                               await showDialog<bool>(
                                             context: context,
                                             builder: (context) => AlertDialog(
-                                              title: const Text('Delete Paper'),
+                                              title: const Text(
+                                                  'Delete Reference'),
                                               content: const Text(
-                                                  'Are you sure you want to delete this ref?'),
+                                                  'Are you sure you want to delete this reference?'),
                                               actions: [
                                                 TextButton(
                                                   onPressed: () =>
@@ -240,8 +241,7 @@ class _PapersListScreenState extends State<PapersListScreen> {
                                           );
 
                                           if (confirmed == true && mounted) {
-                                            await paperProvider
-                                                .deletePaper(paper.id);
+                                            await refProvider.deleteRef(ref.id);
                                           }
                                         }
                                       },
@@ -273,11 +273,11 @@ class _PapersListScreenState extends State<PapersListScreen> {
                                     ),
                                   ],
                                 ),
-                                if (paper.summary != null &&
-                                    paper.summary!.isNotEmpty) ...[
+                                if (ref.summary != null &&
+                                    ref.summary!.isNotEmpty) ...[
                                   const SizedBox(height: 8),
                                   SelectableText(
-                                    paper.summary!,
+                                    ref.summary!,
                                     maxLines: 2,
                                     style: Theme.of(context)
                                         .textTheme
@@ -287,12 +287,12 @@ class _PapersListScreenState extends State<PapersListScreen> {
                                         ),
                                   ),
                                 ],
-                                if (paper.hashtags.isNotEmpty) ...[
+                                if (ref.hashtags.isNotEmpty) ...[
                                   const SizedBox(height: 8),
                                   Wrap(
                                     spacing: 8,
                                     runSpacing: 4,
-                                    children: paper.hashtags.map((hashtag) {
+                                    children: ref.hashtags.map((hashtag) {
                                       return Text(
                                         '#${hashtag.name}',
                                         style: Theme.of(context)
@@ -324,12 +324,12 @@ class _PapersListScreenState extends State<PapersListScreen> {
         onPressed: () async {
           final result = await Navigator.of(context).push<bool>(
             MaterialPageRoute(
-              builder: (_) => const CreatePaperScreen(),
+              builder: (_) => const CreateRefScreen(),
             ),
           );
 
           if (result == true) {
-            _refreshPapers();
+            _refreshRefs();
           }
         },
         child: const Icon(Icons.add),

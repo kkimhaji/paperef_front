@@ -1,65 +1,65 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../providers/paper_provider.dart';
-import '../../../shared/models/paper.dart';
-import 'edit_paper_screen.dart';
+import '../providers/ref_provider.dart';
+import '../../../shared/models/ref.dart';
+import 'edit_ref_screen.dart';
 
-class PaperDetailScreen extends StatefulWidget {
-  final int paperId;
+class RefDetailScreen extends StatefulWidget {
+  final int refId;
 
-  const PaperDetailScreen({super.key, required this.paperId});
+  const RefDetailScreen({super.key, required this.refId});
 
   @override
-  State<PaperDetailScreen> createState() => _PaperDetailScreenState();
+  State<RefDetailScreen> createState() => _RefDetailScreenState();
 }
 
-class _PaperDetailScreenState extends State<PaperDetailScreen> {
-  Paper? _paper;
+class _RefDetailScreenState extends State<RefDetailScreen> {
+  Ref? _ref;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadPaper();
+    _loadRef();
   }
 
-  Future<void> _loadPaper() async {
+  Future<void> _loadRef() async {
     setState(() {
       _isLoading = true;
     });
 
-    final paper =
-        await context.read<PaperProvider>().fetchPaper(widget.paperId);
+    final ref = await context.read<RefProvider>().fetchRef(widget.refId);
 
     if (mounted) {
       setState(() {
-        _paper = paper;
+        _ref = ref;
         _isLoading = false;
       });
     }
   }
 
   Future<void> _navigateToEdit() async {
-    if (_paper == null) return;
+    if (_ref == null) return;
 
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => EditPaperScreen(paper: _paper!),
+        builder: (_) => EditRefScreen(ref: _ref!),
       ),
     );
 
     if (result == true && mounted) {
-      await _loadPaper();
+      await _loadRef();
     }
   }
 
-  Future<void> _deletePaper() async {
+  Future<void> _deleteRef() async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Delete Paper'),
+        title: const Text('Delete Reference'),
         content: const Text(
-            'Are you sure you want to delete this paper? This action cannot be undone.'),
+            'Are you sure you want to delete this reference? This action cannot be undone.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -75,14 +75,13 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
     );
 
     if (confirmed == true && mounted) {
-      final success =
-          await context.read<PaperProvider>().deletePaper(widget.paperId);
+      final success = await context.read<RefProvider>().deleteRef(widget.refId);
 
       if (success && mounted) {
         Navigator.of(context).pop(true);
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to delete paper')),
+          const SnackBar(content: Text('Failed to delete reference')),
         );
       }
     }
@@ -93,27 +92,62 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Paper Detail'),
+          title: const Text('Reference Detail'),
         ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
 
-    if (_paper == null) {
+    if (_ref == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Paper Detail'),
+          title: const Text('Reference Detail'),
         ),
         body: const Center(
-          child: Text('Paper not found'),
+          child: Text('Reference not found'),
         ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Paper Detail'),
+        title: const Text('Reference Detail'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.copy_all),
+            onPressed: () {
+              final buffer = StringBuffer();
+              buffer.writeln(_ref!.title);
+              buffer.writeln();
+
+              if (_ref!.summary != null && _ref!.summary!.isNotEmpty) {
+                buffer.writeln('Summary:');
+                buffer.writeln(_ref!.summary);
+                buffer.writeln();
+              }
+
+              if (_ref!.content != null && _ref!.content!.isNotEmpty) {
+                buffer.writeln('Content:');
+                buffer.writeln(_ref!.content);
+                buffer.writeln();
+              }
+
+              if (_ref!.hashtags.isNotEmpty) {
+                buffer.write('Tags: ');
+                buffer.writeln(
+                    _ref!.hashtags.map((tag) => '#${tag.name}').join(' '));
+              }
+
+              Clipboard.setData(ClipboardData(text: buffer.toString()));
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Full reference copied to clipboard'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            tooltip: 'Copy all',
+          ),
           IconButton(
             icon: const Icon(Icons.edit),
             onPressed: _navigateToEdit,
@@ -121,41 +155,36 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
           ),
           IconButton(
             icon: const Icon(Icons.delete),
-            onPressed: _deletePaper,
+            onPressed: _deleteRef,
             tooltip: 'Delete',
           ),
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _loadPaper,
+        onRefresh: _loadRef,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 제목 - 선택 가능
               SelectableText(
-                _paper!.title,
+                _ref!.title,
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: 8),
-
-              // 날짜
               Text(
-                'Updated: ${_formatDate(_paper!.updatedAt)}',
+                'Updated: ${_formatDate(_ref!.updatedAt)}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: Colors.grey[600],
                     ),
               ),
               const SizedBox(height: 16),
-
-              // 해시태그
-              if (_paper!.hashtags.isNotEmpty) ...[
+              if (_ref!.hashtags.isNotEmpty) ...[
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _paper!.hashtags.map((hashtag) {
+                  children: _ref!.hashtags.map((hashtag) {
                     return SelectableText(
                       '#${hashtag.name}',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -166,9 +195,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                 ),
                 const SizedBox(height: 24),
               ],
-
-              // 요약
-              if (_paper!.summary != null && _paper!.summary!.isNotEmpty) ...[
+              if (_ref!.summary != null && _ref!.summary!.isNotEmpty) ...[
                 Text(
                   'Summary',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -184,15 +211,13 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: SelectableText(
-                    _paper!.summary!,
+                    _ref!.summary!,
                     style: Theme.of(context).textTheme.bodyLarge,
                   ),
                 ),
                 const SizedBox(height: 24),
               ],
-
-              // 본문
-              if (_paper!.content != null && _paper!.content!.isNotEmpty) ...[
+              if (_ref!.content != null && _ref!.content!.isNotEmpty) ...[
                 Text(
                   'Content',
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -201,7 +226,7 @@ class _PaperDetailScreenState extends State<PaperDetailScreen> {
                 ),
                 const SizedBox(height: 8),
                 SelectableText(
-                  _paper!.content!,
+                  _ref!.content!,
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         height: 1.6,
                       ),

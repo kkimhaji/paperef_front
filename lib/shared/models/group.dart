@@ -2,7 +2,7 @@ class Group {
   final int id;
   final String name;
   final String? description;
-  final int paperCount;
+  final int refCount;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -10,7 +10,7 @@ class Group {
     required this.id,
     required this.name,
     this.description,
-    required this.paperCount,
+    required this.refCount,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -20,7 +20,7 @@ class Group {
       id: json['id'] as int,
       name: json['name'] as String,
       description: json['description'] as String?,
-      paperCount: json['paper_count'] as int,
+      refCount: json['ref_count'] as int,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(json['updated_at'] as String),
     );
@@ -31,7 +31,7 @@ class Group {
       'id': id,
       'name': name,
       'description': description,
-      'paper_count': paperCount,
+      'ref_count': refCount,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
     };

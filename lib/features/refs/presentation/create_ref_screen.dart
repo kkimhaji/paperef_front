@@ -1,40 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/paper_provider.dart';
-import '../../../shared/models/paper.dart';
+import '../providers/ref_provider.dart';
 import '../../groups/providers/group_provider.dart';
 
-class EditPaperScreen extends StatefulWidget {
-  final Paper paper;
-
-  const EditPaperScreen({super.key, required this.paper});
+class CreateRefScreen extends StatefulWidget {
+  const CreateRefScreen({super.key});
 
   @override
-  State<EditPaperScreen> createState() => _EditPaperScreenState();
+  State<CreateRefScreen> createState() => _CreateRefScreenState();
 }
 
-class _EditPaperScreenState extends State<EditPaperScreen> {
+class _CreateRefScreenState extends State<CreateRefScreen> {
   final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _titleController;
-  late final TextEditingController _summaryController;
-  late final TextEditingController _contentController;
+  final _titleController = TextEditingController();
+  final _summaryController = TextEditingController();
+  final _contentController = TextEditingController();
   final _hashtagController = TextEditingController();
-  late List<String> _hashtags;
-  bool _isSaving = false;
+  final List<String> _hashtags = [];
   int? _selectedGroupId;
-
-  @override
-  void initState() {
-    super.initState();
-    // Paper 객체에서 데이터를 초기화
-    _titleController = TextEditingController(text: widget.paper.title);
-    _summaryController =
-        TextEditingController(text: widget.paper.summary ?? '');
-    _contentController =
-        TextEditingController(text: widget.paper.content ?? '');
-    _hashtags = widget.paper.hashtags.map((tag) => tag.name).toList();
-    _selectedGroupId = widget.paper.groupId;
-  }
 
   @override
   void dispose() {
@@ -61,14 +44,9 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
     });
   }
 
-  Future<void> _savePaper() async {
+  Future<void> _saveRef() async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isSaving = true;
-      });
-
-      final success = await context.read<PaperProvider>().updatePaper(
-            id: widget.paper.id,
+      final success = await context.read<RefProvider>().createRef(
             title: _titleController.text,
             summary: _summaryController.text.isEmpty
                 ? null
@@ -80,63 +58,8 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
             hashtags: _hashtags,
           );
 
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-
-        if (success) {
-          Navigator.of(context).pop(true);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to update ref')),
-          );
-        }
-      }
-    }
-  }
-
-  Future<void> _deletePaper() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Paper'),
-        content: const Text(
-            'Are you sure you want to delete this paper? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      setState(() {
-        _isSaving = true;
-      });
-
-      final success =
-          await context.read<PaperProvider>().deletePaper(widget.paper.id);
-
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
-
-        if (success) {
-          Navigator.of(context).pop(true);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to delete paper')),
-          );
-        }
+      if (success && mounted) {
+        Navigator.of(context).pop(true);
       }
     }
   }
@@ -145,22 +68,11 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Edit Paper'),
+        title: const Text('New Reference'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: _isSaving ? null : _deletePaper,
-            tooltip: 'Delete',
-          ),
           TextButton(
-            onPressed: _isSaving ? null : _savePaper,
-            child: _isSaving
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Text('Save'),
+            onPressed: _saveRef,
+            child: const Text('Save'),
           ),
         ],
       ),
@@ -189,23 +101,21 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
                       );
                     }),
                   ],
-                  onChanged: _isSaving
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _selectedGroupId = value;
-                          });
-                        },
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedGroupId = value;
+                    });
+                  },
                 );
               },
             ),
+            const SizedBox(height: 16),
             TextFormField(
               controller: _titleController,
               decoration: const InputDecoration(
                 labelText: 'Title *',
-                hintText: 'Enter paper title',
+                hintText: 'Enter reference title',
               ),
-              enabled: !_isSaving,
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter a title';
@@ -221,7 +131,6 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
                 hintText: 'Brief summary for card view',
               ),
               maxLines: 3,
-              enabled: !_isSaving,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -231,7 +140,6 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
                 hintText: 'Detailed content',
               ),
               maxLines: 10,
-              enabled: !_isSaving,
             ),
             const SizedBox(height: 16),
             Row(
@@ -243,13 +151,12 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
                       labelText: 'Hashtag',
                       hintText: 'Add hashtag',
                     ),
-                    enabled: !_isSaving,
                     onSubmitted: (_) => _addHashtag(),
                   ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: _isSaving ? null : _addHashtag,
+                  onPressed: _addHashtag,
                   child: const Text('Add'),
                 ),
               ],
@@ -261,7 +168,7 @@ class _EditPaperScreenState extends State<EditPaperScreen> {
                 children: _hashtags.map((hashtag) {
                   return Chip(
                     label: Text('#$hashtag'),
-                    onDeleted: _isSaving ? null : () => _removeHashtag(hashtag),
+                    onDeleted: () => _removeHashtag(hashtag),
                   );
                 }).toList(),
               ),

@@ -1,23 +1,37 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../providers/paper_provider.dart';
+import '../providers/ref_provider.dart';
 import '../../groups/providers/group_provider.dart';
+import '../../../shared/models/ref.dart';
 
-class CreatePaperScreen extends StatefulWidget {
-  const CreatePaperScreen({super.key});
+class EditRefScreen extends StatefulWidget {
+  final Ref ref;
+
+  const EditRefScreen({super.key, required this.ref});
 
   @override
-  State<CreatePaperScreen> createState() => _CreatePaperScreenState();
+  State<EditRefScreen> createState() => _EditRefScreenState();
 }
 
-class _CreatePaperScreenState extends State<CreatePaperScreen> {
+class _EditRefScreenState extends State<EditRefScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _summaryController = TextEditingController();
-  final _contentController = TextEditingController();
+  late final TextEditingController _titleController;
+  late final TextEditingController _summaryController;
+  late final TextEditingController _contentController;
   final _hashtagController = TextEditingController();
-  final List<String> _hashtags = [];
-  int? _selectedGroupId;
+  late List<String> _hashtags;
+  late int? _selectedGroupId;
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController(text: widget.ref.title);
+    _summaryController = TextEditingController(text: widget.ref.summary ?? '');
+    _contentController = TextEditingController(text: widget.ref.content ?? '');
+    _hashtags = widget.ref.hashtags.map((tag) => tag.name).toList();
+    _selectedGroupId = widget.ref.groupId;
+  }
 
   @override
   void dispose() {
@@ -44,9 +58,14 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
     });
   }
 
-  Future<void> _savePaper() async {
+  Future<void> _saveRef() async {
     if (_formKey.currentState!.validate()) {
-      final success = await context.read<PaperProvider>().createPaper(
+      setState(() {
+        _isSaving = true;
+      });
+
+      final success = await context.read<RefProvider>().updateRef(
+            id: widget.ref.id,
             title: _titleController.text,
             summary: _summaryController.text.isEmpty
                 ? null
@@ -58,8 +77,63 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
             hashtags: _hashtags,
           );
 
-      if (success && mounted) {
-        Navigator.of(context).pop(true);
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+
+        if (success) {
+          Navigator.of(context).pop(true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to update reference')),
+          );
+        }
+      }
+    }
+  }
+
+  Future<void> _deleteRef() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Reference'),
+        content: const Text(
+            'Are you sure you want to delete this reference? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() {
+        _isSaving = true;
+      });
+
+      final success =
+          await context.read<RefProvider>().deleteRef(widget.ref.id);
+
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+
+        if (success) {
+          Navigator.of(context).pop(true);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete reference')),
+          );
+        }
       }
     }
   }
@@ -68,11 +142,22 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Paper'),
+        title: const Text('Edit Reference'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: _isSaving ? null : _deleteRef,
+            tooltip: 'Delete',
+          ),
           TextButton(
-            onPressed: _savePaper,
-            child: const Text('Save'),
+            onPressed: _isSaving ? null : _saveRef,
+            child: _isSaving
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Text('Save'),
           ),
         ],
       ),
@@ -81,7 +166,6 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // 그룹 선택
             Consumer<GroupProvider>(
               builder: (context, groupProvider, _) {
                 return DropdownButtonFormField<int?>(
@@ -102,11 +186,13 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
                       );
                     }),
                   ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedGroupId = value;
-                    });
-                  },
+                  onChanged: _isSaving
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _selectedGroupId = value;
+                          });
+                        },
                 );
               },
             ),
@@ -115,8 +201,9 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
               controller: _titleController,
               decoration: const InputDecoration(
                 labelText: 'Title *',
-                hintText: 'Enter paper title',
+                hintText: 'Enter reference title',
               ),
+              enabled: !_isSaving,
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter a title';
@@ -132,6 +219,7 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
                 hintText: 'Brief summary for card view',
               ),
               maxLines: 3,
+              enabled: !_isSaving,
             ),
             const SizedBox(height: 16),
             TextFormField(
@@ -141,6 +229,7 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
                 hintText: 'Detailed content',
               ),
               maxLines: 10,
+              enabled: !_isSaving,
             ),
             const SizedBox(height: 16),
             Row(
@@ -152,12 +241,13 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
                       labelText: 'Hashtag',
                       hintText: 'Add hashtag',
                     ),
+                    enabled: !_isSaving,
                     onSubmitted: (_) => _addHashtag(),
                   ),
                 ),
                 const SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: _addHashtag,
+                  onPressed: _isSaving ? null : _addHashtag,
                   child: const Text('Add'),
                 ),
               ],
@@ -169,7 +259,7 @@ class _CreatePaperScreenState extends State<CreatePaperScreen> {
                 children: _hashtags.map((hashtag) {
                   return Chip(
                     label: Text('#$hashtag'),
-                    onDeleted: () => _removeHashtag(hashtag),
+                    onDeleted: _isSaving ? null : () => _removeHashtag(hashtag),
                   );
                 }).toList(),
               ),
