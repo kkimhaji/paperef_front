@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/ref_provider.dart';
-import '../../authentication/providers/auth_provider.dart';
 import '../../groups/providers/group_provider.dart';
 import '../../groups/presentation/app_drawer.dart';
 import 'ref_detail_screen.dart';
