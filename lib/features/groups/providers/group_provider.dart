@@ -43,9 +43,6 @@ class GroupProvider with ChangeNotifier {
         queryParameters: queryParams.isEmpty ? null : queryParams,
       );
 
-      print('Groups response status: ${response.statusCode}');
-      print('Groups response body: ${response.body}');
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         _groups = data
@@ -72,29 +69,41 @@ class GroupProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // 전체 트리 구조 조회
+  // fetchGroupTree 메서드를 fetchGroups로 대체
   Future<void> fetchGroupTree() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      final response = await _apiService.get(ApiConstants.groupsTree);
+      // /groups/tree 대신 /groups?include_nested=true 사용
+      final queryParams = {'include_nested': 'true'};
 
-      print('Group tree response status: ${response.statusCode}');
+      final response = await _apiService.get(
+        ApiConstants.groups,
+        queryParameters: queryParams,
+      );
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
-        _groupTree = data
+        final allGroups = data
             .map((item) => Group.fromJson(item as Map<String, dynamic>))
             .toList();
+
+        // 클라이언트에서 트리 구조 구성
+        _groupTree = _buildTreeFromFlat(allGroups);
+        _groups = allGroups;
         _error = null;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
           await fetchGroupTree();
           return;
+        } else {
+          _error = 'Session expired. Please login again.';
         }
+      } else {
+        _error = 'Failed to load groups: ${response.statusCode}';
       }
     } catch (e) {
       print('Error in fetchGroupTree: $e');
@@ -103,6 +112,41 @@ class GroupProvider with ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+// 플랫한 리스트를 트리로 변환
+  List<Group> _buildTreeFromFlat(List<Group> flatGroups) {
+    Map<int, Group> groupMap = {};
+    List<Group> roots = [];
+
+    // 먼저 모든 그룹을 맵에 추가
+    for (var group in flatGroups) {
+      groupMap[group.id] = Group(
+        id: group.id,
+        name: group.name,
+        description: group.description,
+        parentId: group.parentId,
+        refCount: group.refCount,
+        childrenCount: group.childrenCount,
+        createdAt: group.createdAt,
+        updatedAt: group.updatedAt,
+        children: [],
+      );
+    }
+
+    // 부모-자식 관계 구성
+    for (var group in groupMap.values) {
+      if (group.parentId == null) {
+        roots.add(group);
+      } else {
+        final parent = groupMap[group.parentId];
+        if (parent != null) {
+          parent.children!.add(group);
+        }
+      }
+    }
+
+    return roots;
   }
 
   // 그룹 경로(breadcrumb) 조회
@@ -149,8 +193,6 @@ class GroupProvider with ChangeNotifier {
     int? parentId,
   }) async {
     try {
-      print('Creating group with name: $name, parentId: $parentId');
-
       final response = await _apiService.post(
         ApiConstants.groups,
         {
@@ -160,8 +202,6 @@ class GroupProvider with ChangeNotifier {
         },
         includeAuth: true,
       );
-
-      print('Create group response status: ${response.statusCode}');
 
       if (response.statusCode == 201) {
         await fetchGroups(parentId: _currentParentId);

@@ -59,11 +59,11 @@ class AuthenticationWrapper extends StatelessWidget {
           );
         }
 
-// 초기화 시 트리 로드
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          context.read<GroupProvider>().fetchGroupTree();
-        });
-        return const RefsListScreen();
+        if (authProvider.isAuthenticated) {
+          return const RefsListScreen();
+        }
+
+        return const LoginScreen();
       },
     );
   }
