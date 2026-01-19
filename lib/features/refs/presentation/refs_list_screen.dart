@@ -66,18 +66,43 @@ class _RefsListScreenState extends State<RefsListScreen> {
     }
   }
 
-  String _getTitle() {
-    final groupProvider = context.watch<GroupProvider>();
+  Widget _buildTitle(GroupProvider groupProvider) {
     if (groupProvider.selectedGroupId == null) {
-      return 'All References';
+      return const Text('All References');
     } else if (groupProvider.selectedGroupId == 0) {
-      return 'Ungrouped';
+      return const Text('Ungrouped');
     } else {
+      // Breadcrumb 표시
+      if (groupProvider.breadcrumbs.isNotEmpty) {
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (int i = 0; i < groupProvider.breadcrumbs.length; i++) ...[
+                if (i > 0)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(Icons.chevron_right, size: 16),
+                  ),
+                Text(
+                  groupProvider.breadcrumbs[i]['name'] as String,
+                  style: TextStyle(
+                    fontWeight: i == groupProvider.breadcrumbs.length - 1
+                        ? FontWeight.bold
+                        : FontWeight.normal,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      }
+
       final group = groupProvider.groups.firstWhere(
         (g) => g.id == groupProvider.selectedGroupId,
         orElse: () => groupProvider.groups.first,
       );
-      return group.name;
+      return Text(group.name);
     }
   }
 
@@ -85,7 +110,9 @@ class _RefsListScreenState extends State<RefsListScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(_getTitle()),
+        title: Consumer<GroupProvider>(
+          builder: (context, groupProvider, _) => _buildTitle(groupProvider),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),

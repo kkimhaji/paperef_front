@@ -16,6 +16,7 @@ class _EditGroupDialogState extends State<EditGroupDialog> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
+  int? _selectedParentId;
   bool _isLoading = false;
 
   @override
@@ -24,6 +25,11 @@ class _EditGroupDialogState extends State<EditGroupDialog> {
     _nameController = TextEditingController(text: widget.group.name);
     _descriptionController =
         TextEditingController(text: widget.group.description ?? '');
+    _selectedParentId = widget.group.parentId;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<GroupProvider>().fetchGroupTree();
+    });
   }
 
   @override
@@ -45,6 +51,7 @@ class _EditGroupDialogState extends State<EditGroupDialog> {
             description: _descriptionController.text.trim().isEmpty
                 ? null
                 : _descriptionController.text.trim(),
+            parentId: _selectedParentId,
           );
 
       if (mounted) {
@@ -76,35 +83,75 @@ class _EditGroupDialogState extends State<EditGroupDialog> {
       title: const Text('Edit Group'),
       content: Form(
         key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(
-                labelText: 'Group Name *',
-                hintText: 'e.g., Research Papers',
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Consumer<GroupProvider>(
+                builder: (context, groupProvider, _) {
+                  final flatGroups = groupProvider
+                      .getFlatGroupList()
+                      .where((g) => g.id != widget.group.id) // 자기 자신 제외
+                      .toList();
+
+                  return DropdownButtonFormField<int?>(
+                    value: _selectedParentId,
+                    decoration: const InputDecoration(
+                      labelText: 'Parent Group',
+                      hintText: 'Select parent group',
+                    ),
+                    items: [
+                      const DropdownMenuItem<int?>(
+                        value: null,
+                        child: Text('None (Root Level)'),
+                      ),
+                      ...flatGroups.map((group) {
+                        final depth = groupProvider.getGroupDepth(group.id);
+                        final indent = '  ' * depth;
+                        return DropdownMenuItem<int?>(
+                          value: group.id,
+                          child: Text('$indent${group.name}'),
+                        );
+                      }),
+                    ],
+                    onChanged: _isLoading
+                        ? null
+                        : (value) {
+                            setState(() {
+                              _selectedParentId = value;
+                            });
+                          },
+                  );
+                },
               ),
-              enabled: !_isLoading,
-              autofocus: true,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter a group name';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description (Optional)',
-                hintText: 'Brief description of this group',
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _nameController,
+                decoration: const InputDecoration(
+                  labelText: 'Group Name *',
+                  hintText: 'e.g., Research Papers',
+                ),
+                enabled: !_isLoading,
+                autofocus: true,
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a group name';
+                  }
+                  return null;
+                },
               ),
-              enabled: !_isLoading,
-              maxLines: 3,
-            ),
-          ],
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _descriptionController,
+                decoration: const InputDecoration(
+                  labelText: 'Description (Optional)',
+                  hintText: 'Brief description of this group',
+                ),
+                enabled: !_isLoading,
+                maxLines: 3,
+              ),
+            ],
+          ),
         ),
       ),
       actions: [

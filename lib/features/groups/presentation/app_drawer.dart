@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/group_provider.dart';
 import '../../../features/refs/providers/ref_provider.dart';
 import '../../../features/authentication/providers/auth_provider.dart';
+import '../../../shared/models/group.dart';
 import 'create_group_dialog.dart';
 import 'edit_group_dialog.dart';
 
@@ -94,7 +95,7 @@ class AppDrawer extends StatelessWidget {
                   padding: EdgeInsets.all(16),
                   child: Center(child: CircularProgressIndicator()),
                 )
-              else if (groupProvider.groups.isEmpty)
+              else if (groupProvider.groupTree.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(
@@ -106,76 +107,8 @@ class AppDrawer extends StatelessWidget {
                   ),
                 )
               else
-                ...groupProvider.groups.map((group) {
-                  return ListTile(
-                    leading: const Icon(Icons.folder),
-                    title: Text(group.name),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          '${group.refCount}',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        PopupMenuButton<String>(
-                          onSelected: (value) async {
-                            if (value == 'edit') {
-                              showDialog(
-                                context: context,
-                                builder: (_) => EditGroupDialog(group: group),
-                              );
-                            } else if (value == 'delete') {
-                              final confirmed = await showDialog<bool>(
-                                context: context,
-                                builder: (context) => AlertDialog(
-                                  title: const Text('Delete Group'),
-                                  content: Text(
-                                    'Are you sure you want to delete "${group.name}"? References in this group will not be deleted.',
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(false),
-                                      child: const Text('Cancel'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.of(context).pop(true),
-                                      style: TextButton.styleFrom(
-                                          foregroundColor: Colors.red),
-                                      child: const Text('Delete'),
-                                    ),
-                                  ],
-                                ),
-                              );
-
-                              if (confirmed == true) {
-                                await groupProvider.deleteGroup(group.id);
-                              }
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'edit',
-                              child: Text('Edit'),
-                            ),
-                            const PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Delete',
-                                  style: TextStyle(color: Colors.red)),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    selected: groupProvider.selectedGroupId == group.id,
-                    onTap: () {
-                      groupProvider.selectGroup(group.id);
-                      context.read<RefProvider>().fetchRefs(groupId: group.id);
-                      Navigator.pop(context);
-                    },
-                  );
-                }),
+                ..._buildGroupTree(
+                    context, groupProvider, groupProvider.groupTree, 0),
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.logout),
@@ -191,6 +124,154 @@ class AppDrawer extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+
+  List<Widget> _buildGroupTree(
+    BuildContext context,
+    GroupProvider groupProvider,
+    List<Group> groups,
+    int depth,
+  ) {
+    List<Widget> widgets = [];
+
+    for (var group in groups) {
+      widgets.add(
+        _buildGroupTile(context, groupProvider, group, depth),
+      );
+
+      // 자식 그룹이 있으면 재귀적으로 표시
+      if (group.children != null && group.children!.isNotEmpty) {
+        widgets.addAll(
+          _buildGroupTree(context, groupProvider, group.children!, depth + 1),
+        );
+      }
+    }
+
+    return widgets;
+  }
+
+  Widget _buildGroupTile(
+    BuildContext context,
+    GroupProvider groupProvider,
+    Group group,
+    int depth,
+  ) {
+    final isSelected = groupProvider.selectedGroupId == group.id;
+    final hasChildren = group.childrenCount > 0;
+
+    return ListTile(
+      contentPadding: EdgeInsets.only(
+        left: 16.0 + (depth * 20.0), // 들여쓰기
+        right: 8,
+      ),
+      leading: Icon(
+        hasChildren ? Icons.folder : Icons.folder_outlined,
+        size: 20,
+      ),
+      title: Text(
+        group.name,
+        style: TextStyle(
+          fontSize: 14,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        ),
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (group.refCount > 0)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                '${group.refCount}',
+                style: const TextStyle(fontSize: 11),
+              ),
+            ),
+          PopupMenuButton<String>(
+            onSelected: (value) async {
+              if (value == 'add_subgroup') {
+                showDialog(
+                  context: context,
+                  builder: (_) => CreateGroupDialog(parentId: group.id),
+                );
+              } else if (value == 'edit') {
+                showDialog(
+                  context: context,
+                  builder: (_) => EditGroupDialog(group: group),
+                );
+              } else if (value == 'delete') {
+                final confirmed = await showDialog<bool>(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: const Text('Delete Group'),
+                    content: Text(
+                      'Are you sure you want to delete "${group.name}"?${hasChildren ? '\n\nThis will also delete all subgroups.' : ''}\n\nReferences will not be deleted.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(false),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(true),
+                        style:
+                            TextButton.styleFrom(foregroundColor: Colors.red),
+                        child: const Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirmed == true) {
+                  await groupProvider.deleteGroup(group.id);
+                }
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'add_subgroup',
+                child: Row(
+                  children: [
+                    Icon(Icons.create_new_folder, size: 18),
+                    SizedBox(width: 8),
+                    Text('Add Subgroup'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'edit',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit, size: 18),
+                    SizedBox(width: 8),
+                    Text('Edit'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'delete',
+                child: Row(
+                  children: [
+                    Icon(Icons.delete, size: 18, color: Colors.red),
+                    SizedBox(width: 8),
+                    Text('Delete', style: TextStyle(color: Colors.red)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+      selected: isSelected,
+      onTap: () {
+        groupProvider.selectGroup(group.id);
+        context.read<RefProvider>().fetchRefs(groupId: group.id);
+        Navigator.pop(context);
+      },
     );
   }
 }

@@ -18,5 +18,7 @@ class ApiConstants {
 
   // Group endpoints
   static const String groups = '/groups';
+  static const String groupsTree = '/groups/tree';
   static String groupDetail(int id) => '/groups/$id';
+  static String groupPath(int id) => '/groups/$id/path';
 }
