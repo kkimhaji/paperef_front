@@ -22,7 +22,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<RefProvider>().fetchRefs();
       context.read<RefProvider>().fetchHashtags();
-      context.read<GroupProvider>().fetchGroups();
+      context.read<GroupProvider>().fetchGroupTree();
     });
   }
 

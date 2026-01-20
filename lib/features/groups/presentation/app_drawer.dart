@@ -4,11 +4,28 @@ import '../providers/group_provider.dart';
 import '../../../features/refs/providers/ref_provider.dart';
 import '../../../features/authentication/providers/auth_provider.dart';
 import '../../../shared/models/group.dart';
+import '../../../core/theme/app_theme.dart';
 import 'create_group_dialog.dart';
 import 'edit_group_dialog.dart';
 
-class AppDrawer extends StatelessWidget {
+class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
+
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
+  @override
+  void initState() {
+    super.initState();
+    // Drawer가 열릴 때 그룹 목록 로드
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<GroupProvider>().fetchGroupTree();
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +112,28 @@ class AppDrawer extends StatelessWidget {
                   padding: EdgeInsets.all(16),
                   child: Center(child: CircularProgressIndicator()),
                 )
-              else if (groupProvider.groupTree.isEmpty)
+              else if (groupProvider.error != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      Text(
+                        'Error loading groups',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: Colors.red,
+                            ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          groupProvider.fetchGroupTree();
+                        },
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
+                )
+              else if (groupProvider.groupTree.isEmpty &&
+                  groupProvider.groups.isEmpty)
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(
@@ -107,8 +145,11 @@ class AppDrawer extends StatelessWidget {
                   ),
                 )
               else
-                ..._buildGroupTree(
-                    context, groupProvider, groupProvider.groupTree, 0),
+                // groupTree가 있으면 트리로, 없으면 플랫 리스트로 표시
+                ...(groupProvider.groupTree.isNotEmpty
+                    ? _buildGroupTree(
+                        context, groupProvider, groupProvider.groupTree, 0)
+                    : _buildFlatGroupList(context, groupProvider)),
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.logout),
@@ -127,6 +168,7 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
+  // 트리 구조로 그룹 표시
   List<Widget> _buildGroupTree(
     BuildContext context,
     GroupProvider groupProvider,
@@ -151,6 +193,16 @@ class AppDrawer extends StatelessWidget {
     return widgets;
   }
 
+  // 플랫 리스트로 그룹 표시 (폴백)
+  List<Widget> _buildFlatGroupList(
+    BuildContext context,
+    GroupProvider groupProvider,
+  ) {
+    return groupProvider.groups.map((group) {
+      return _buildGroupTile(context, groupProvider, group, 0);
+    }).toList();
+  }
+
   Widget _buildGroupTile(
     BuildContext context,
     GroupProvider groupProvider,
@@ -168,12 +220,14 @@ class AppDrawer extends StatelessWidget {
       leading: Icon(
         hasChildren ? Icons.folder : Icons.folder_outlined,
         size: 20,
+        color: isSelected ? AppTheme.primaryColor : null,
       ),
       title: Text(
         group.name,
         style: TextStyle(
           fontSize: 14,
           fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          color: isSelected ? AppTheme.primaryColor : null,
         ),
       ),
       trailing: Row(
@@ -183,12 +237,17 @@ class AppDrawer extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.grey[300],
+                color: isSelected
+                    ? AppTheme.primaryColor.withOpacity(0.1)
+                    : Colors.grey[300],
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(
                 '${group.refCount}',
-                style: const TextStyle(fontSize: 11),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: isSelected ? AppTheme.primaryColor : null,
+                ),
               ),
             ),
           PopupMenuButton<String>(
@@ -207,6 +266,8 @@ class AppDrawer extends StatelessWidget {
                 final confirmed = await showDialog<bool>(
                   context: context,
                   builder: (context) => AlertDialog(
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
                     title: const Text('Delete Group'),
                     content: Text(
                       'Are you sure you want to delete "${group.name}"?${hasChildren ? '\n\nThis will also delete all subgroups.' : ''}\n\nReferences will not be deleted.',
@@ -216,10 +277,10 @@ class AppDrawer extends StatelessWidget {
                         onPressed: () => Navigator.of(context).pop(false),
                         child: const Text('Cancel'),
                       ),
-                      TextButton(
+                      FilledButton(
                         onPressed: () => Navigator.of(context).pop(true),
                         style:
-                            TextButton.styleFrom(foregroundColor: Colors.red),
+                            FilledButton.styleFrom(backgroundColor: Colors.red),
                         child: const Text('Delete'),
                       ),
                     ],
@@ -267,6 +328,7 @@ class AppDrawer extends StatelessWidget {
         ],
       ),
       selected: isSelected,
+      selectedTileColor: AppTheme.primaryColor.withOpacity(0.08),
       onTap: () {
         groupProvider.selectGroup(group.id);
         context.read<RefProvider>().fetchRefs(groupId: group.id);
