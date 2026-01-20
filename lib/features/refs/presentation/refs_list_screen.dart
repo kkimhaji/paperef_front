@@ -6,6 +6,7 @@ import '../../groups/presentation/app_drawer.dart';
 import 'ref_detail_screen.dart';
 import 'create_ref_screen.dart';
 import 'edit_ref_screen.dart';
+import '../../../core/theme/app_theme.dart';
 
 class RefsListScreen extends StatefulWidget {
   const RefsListScreen({super.key});
@@ -124,6 +125,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
       body: Column(
         children: [
           // 해시태그 필터
+          // 해시태그 필터
           Consumer<RefProvider>(
             builder: (context, refProvider, _) {
               if (refProvider.hashtags.isEmpty) {
@@ -131,39 +133,83 @@ class _RefsListScreenState extends State<RefsListScreen> {
               }
 
               return Container(
-                height: 50,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: ListView(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border(
+                    bottom: BorderSide(color: AppTheme.dividerColor),
+                  ),
+                ),
+                child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  children: [
-                    FilterChip(
-                      label: const Text('All'),
-                      selected: refProvider.selectedHashtag == null,
-                      onSelected: (_) {
-                        refProvider.clearFilter();
-                      },
-                    ),
-                    const SizedBox(width: 8),
-                    ...refProvider.hashtags.map((hashtag) {
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: FilterChip(
-                          label: Text('#$hashtag'),
-                          selected: refProvider.selectedHashtag == hashtag,
-                          onSelected: (_) {
-                            final groupId =
-                                context.read<GroupProvider>().selectedGroupId;
-                            refProvider.fetchRefs(
-                                hashtag: hashtag, groupId: groupId);
-                          },
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Row(
+                    children: [
+                      FilterChip(
+                        label: const Text('All'),
+                        selected: refProvider.selectedHashtag == null,
+                        onSelected: (_) {
+                          refProvider.clearFilter();
+                        },
+                        backgroundColor: Colors.grey[100],
+                        selectedColor: AppTheme.primaryColor.withOpacity(0.15),
+                        checkmarkColor: AppTheme.primaryColor,
+                        labelStyle: TextStyle(
+                          color: refProvider.selectedHashtag == null
+                              ? AppTheme.primaryColor
+                              : AppTheme.textSecondary,
+                          fontWeight: refProvider.selectedHashtag == null
+                              ? FontWeight.w600
+                              : FontWeight.normal,
                         ),
-                      );
-                    }),
-                  ],
+                        side: BorderSide(
+                          color: refProvider.selectedHashtag == null
+                              ? AppTheme.primaryColor
+                              : AppTheme.borderColor,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ...refProvider.hashtags.map((hashtag) {
+                        final isSelected =
+                            refProvider.selectedHashtag == hashtag;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: FilterChip(
+                            label: Text('#$hashtag'),
+                            selected: isSelected,
+                            onSelected: (_) {
+                              final groupId =
+                                  context.read<GroupProvider>().selectedGroupId;
+                              refProvider.fetchRefs(
+                                  hashtag: hashtag, groupId: groupId);
+                            },
+                            backgroundColor: Colors.grey[100],
+                            selectedColor:
+                                AppTheme.primaryColor.withOpacity(0.15),
+                            checkmarkColor: AppTheme.primaryColor,
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? AppTheme.primaryColor
+                                  : AppTheme.textSecondary,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                            side: BorderSide(
+                              color: isSelected
+                                  ? AppTheme.primaryColor
+                                  : AppTheme.borderColor,
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
                 ),
               );
             },
           ),
+
           const Divider(height: 1),
           // 레퍼런스 목록
           Expanded(
@@ -203,8 +249,21 @@ class _RefsListScreenState extends State<RefsListScreen> {
                     itemCount: refProvider.refs.length,
                     itemBuilder: (context, index) {
                       final ref = refProvider.refs[index];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 16),
+                      // itemBuilder 내부의 Card 부분
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppTheme.borderColor),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.03),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
                         child: InkWell(
                           onTap: () async {
                             final result =
@@ -218,6 +277,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
                               _refreshRefs();
                             }
                           },
+                          borderRadius: BorderRadius.circular(12),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
@@ -226,14 +286,18 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                 Row(
                                   children: [
                                     Expanded(
-                                      child: SelectableText(
+                                      child: Text(
                                         ref.title,
                                         style: Theme.of(context)
                                             .textTheme
                                             .titleLarge,
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
                                     PopupMenuButton<String>(
+                                      icon: Icon(Icons.more_vert,
+                                          color: Colors.grey[600]),
                                       onSelected: (value) async {
                                         if (value == 'edit') {
                                           await _navigateToEdit(ref.id);
@@ -242,6 +306,10 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                               await showDialog<bool>(
                                             context: context,
                                             builder: (context) => AlertDialog(
+                                              shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                          16)),
                                               title: const Text(
                                                   'Delete Reference'),
                                               content: const Text(
@@ -253,12 +321,12 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                                           .pop(false),
                                                   child: const Text('Cancel'),
                                                 ),
-                                                TextButton(
+                                                FilledButton(
                                                   onPressed: () =>
                                                       Navigator.of(context)
                                                           .pop(true),
-                                                  style: TextButton.styleFrom(
-                                                      foregroundColor:
+                                                  style: FilledButton.styleFrom(
+                                                      backgroundColor:
                                                           Colors.red),
                                                   child: const Text('Delete'),
                                                 ),
@@ -276,8 +344,9 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                           value: 'edit',
                                           child: Row(
                                             children: [
-                                              Icon(Icons.edit, size: 20),
-                                              SizedBox(width: 8),
+                                              Icon(Icons.edit_outlined,
+                                                  size: 18),
+                                              SizedBox(width: 12),
                                               Text('Edit'),
                                             ],
                                           ),
@@ -286,9 +355,9 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                           value: 'delete',
                                           child: Row(
                                             children: [
-                                              Icon(Icons.delete,
-                                                  size: 20, color: Colors.red),
-                                              SizedBox(width: 8),
+                                              Icon(Icons.delete_outline,
+                                                  size: 18, color: Colors.red),
+                                              SizedBox(width: 12),
                                               Text('Delete',
                                                   style: TextStyle(
                                                       color: Colors.red)),
@@ -302,37 +371,69 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                 if (ref.summary != null &&
                                     ref.summary!.isNotEmpty) ...[
                                   const SizedBox(height: 8),
-                                  SelectableText(
+                                  Text(
                                     ref.summary!,
                                     maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
                                         ?.copyWith(
-                                          overflow: TextOverflow.ellipsis,
+                                          color: AppTheme.textSecondary,
+                                          height: 1.4,
                                         ),
                                   ),
                                 ],
                                 if (ref.hashtags.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
+                                  const SizedBox(height: 12),
                                   Wrap(
-                                    spacing: 8,
-                                    runSpacing: 4,
-                                    children: ref.hashtags.map((hashtag) {
-                                      return Text(
-                                        '#${hashtag.name}',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall
-                                            ?.copyWith(
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
-                                            ),
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children:
+                                        ref.hashtags.take(3).map((hashtag) {
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 10, vertical: 4),
+                                        decoration: BoxDecoration(
+                                          color: AppTheme.primaryColor
+                                              .withOpacity(0.08),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          border: Border.all(
+                                            color: AppTheme.primaryColor
+                                                .withOpacity(0.2),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          '#${hashtag.name}',
+                                          style: TextStyle(
+                                            color: AppTheme.primaryColor,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
                                       );
                                     }).toList(),
                                   ),
                                 ],
+                                const SizedBox(height: 8),
+                                Row(
+                                  children: [
+                                    Icon(Icons.access_time,
+                                        size: 12, color: Colors.grey[400]),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      _formatDate(ref.updatedAt),
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodySmall
+                                          ?.copyWith(
+                                            color: Colors.grey[500],
+                                            fontSize: 11,
+                                          ),
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
                           ),
@@ -361,5 +462,23 @@ class _RefsListScreenState extends State<RefsListScreen> {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  // _formatDate 함수를 여기에 추가 (build 메서드 아래)
+  String _formatDate(DateTime date) {
+    final now = DateTime.now();
+    final difference = now.difference(date);
+
+    if (difference.inMinutes < 1) {
+      return 'just now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+    }
   }
 }
