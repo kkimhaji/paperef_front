@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // 1. 색상 정의 (static const는 그대로 유지)
@@ -13,9 +14,47 @@ class AppTheme {
   static const Color dividerColor = Color(0xFFEEEEEE);
   static const Color accentColor = Color(0xFFFF5722);
 
-  // 2. ThemeData를 '변수'가 아닌 'Getter'로 변경 (중요!)
   static ThemeData get lightTheme => ThemeData(
         useMaterial3: true,
+        // Google Fonts 사용
+        textTheme: GoogleFonts.notoSansKrTextTheme(
+          const TextTheme(
+            headlineLarge: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: textPrimary,
+            ),
+            headlineMedium: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+              color: textPrimary,
+            ),
+            titleLarge: TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: textPrimary,
+            ),
+            titleMedium: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: textPrimary,
+            ),
+            bodyLarge: TextStyle(
+              fontSize: 16,
+              color: textPrimary,
+              height: 1.5,
+            ),
+            bodyMedium: TextStyle(
+              fontSize: 14,
+              color: textPrimary,
+              height: 1.5,
+            ),
+            bodySmall: TextStyle(
+              fontSize: 12,
+              color: textSecondary,
+            ),
+          ),
+        ),
         colorScheme: ColorScheme.fromSeed(
           seedColor: primaryColor,
           primary: primaryColor,
@@ -75,14 +114,6 @@ class AppTheme {
             borderRadius: BorderRadius.circular(20),
             side: const BorderSide(color: borderColor, width: 1),
           ),
-        ),
-
-        // Text 테마
-        textTheme: const TextTheme(
-          headlineLarge: TextStyle(
-              fontSize: 28, fontWeight: FontWeight.bold, color: textPrimary),
-          bodyLarge: TextStyle(fontSize: 16, color: textPrimary, height: 1.5),
-          bodyMedium: TextStyle(fontSize: 14, color: textPrimary, height: 1.5),
         ),
       );
 }
