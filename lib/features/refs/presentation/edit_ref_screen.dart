@@ -206,13 +206,9 @@ class _EditRefScreenState extends State<EditRefScreen> {
                       child: Text('No Group'),
                     ),
                     ...flatGroups.map((group) {
-                      // 그룹의 깊이에 따라 들여쓰기
-                      final depth = groupProvider.getGroupDepth(group.id);
-                      final indent = '  ' * depth;
-
                       return DropdownMenuItem<int?>(
                         value: group.id,
-                        child: Text('$indent${group.name}'),
+                        child: Text('${group.name}'),
                       );
                     }),
                   ],
