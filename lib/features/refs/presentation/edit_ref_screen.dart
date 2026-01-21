@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/ref_provider.dart';
 import '../../groups/providers/group_provider.dart';
@@ -21,7 +22,7 @@ class _EditRefScreenState extends State<EditRefScreen> {
   late final TextEditingController _contentController;
   final _hashtagController = TextEditingController();
 
-  // FocusNode 추가
+  // FocusNode
   final _titleFocusNode = FocusNode();
   final _summaryFocusNode = FocusNode();
   final _contentFocusNode = FocusNode();
@@ -39,6 +40,14 @@ class _EditRefScreenState extends State<EditRefScreen> {
     _contentController = TextEditingController(text: widget.ref.content ?? '');
     _hashtags = widget.ref.hashtags.map((tag) => tag.name).toList();
     _selectedGroupId = widget.ref.groupId;
+
+    // 그룹 트리 로드
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final groupProvider = context.read<GroupProvider>();
+      if (groupProvider.groupTree.isEmpty) {
+        groupProvider.fetchGroupTree();
+      }
+    });
   }
 
   @override
@@ -47,10 +56,10 @@ class _EditRefScreenState extends State<EditRefScreen> {
     _summaryController.dispose();
     _contentController.dispose();
     _hashtagController.dispose();
-    _titleFocusNode.dispose(); // 추가
-    _summaryFocusNode.dispose(); // 추가
-    _contentFocusNode.dispose(); // 추가
-    _hashtagFocusNode.dispose(); // 추가
+    _titleFocusNode.dispose();
+    _summaryFocusNode.dispose();
+    _contentFocusNode.dispose();
+    _hashtagFocusNode.dispose();
     super.dispose();
   }
 
@@ -182,6 +191,9 @@ class _EditRefScreenState extends State<EditRefScreen> {
           children: [
             Consumer<GroupProvider>(
               builder: (context, groupProvider, _) {
+                // 플랫한 그룹 리스트 가져오기 (서브그룹 포함)
+                final flatGroups = groupProvider.getFlatGroupList();
+
                 return DropdownButtonFormField<int?>(
                   value: _selectedGroupId,
                   decoration: const InputDecoration(
@@ -193,10 +205,14 @@ class _EditRefScreenState extends State<EditRefScreen> {
                       value: null,
                       child: Text('No Group'),
                     ),
-                    ...groupProvider.groups.map((group) {
+                    ...flatGroups.map((group) {
+                      // 그룹의 깊이에 따라 들여쓰기
+                      final depth = groupProvider.getGroupDepth(group.id);
+                      final indent = '  ' * depth;
+
                       return DropdownMenuItem<int?>(
                         value: group.id,
-                        child: Text(group.name),
+                        child: Text('$indent${group.name}'),
                       );
                     }),
                   ],
@@ -211,53 +227,105 @@ class _EditRefScreenState extends State<EditRefScreen> {
               },
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _titleController,
-              focusNode: _titleFocusNode,
-              decoration: const InputDecoration(
-                labelText: 'Title *',
-                hintText: 'Enter reference title',
-              ),
-              enabled: !_isSaving,
-              textInputAction: TextInputAction.next,
-              onFieldSubmitted: (_) {
-                // Title은 한 줄이므로 Enter로 이동 OK
-                _summaryFocusNode.requestFocus();
-              },
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter a title';
+
+            // Title 필드
+            Focus(
+              onKeyEvent: (node, event) {
+                if (event is KeyDownEvent &&
+                    event.logicalKey == LogicalKeyboardKey.tab) {
+                  final isShiftPressed =
+                      HardwareKeyboard.instance.isShiftPressed;
+                  if (!isShiftPressed) {
+                    _summaryFocusNode.requestFocus();
+                    return KeyEventResult.handled;
+                  }
                 }
-                return null;
+                return KeyEventResult.ignored;
               },
-            ),
-            const SizedBox(height: 16),
-            TextFormField(
-              controller: _summaryController,
-              focusNode: _summaryFocusNode,
-              decoration: const InputDecoration(
-                labelText: 'Summary',
-                hintText: 'Brief summary for card view',
+              child: TextFormField(
+                controller: _titleController,
+                focusNode: _titleFocusNode,
+                decoration: const InputDecoration(
+                  labelText: 'Title *',
+                  hintText: 'Enter reference title',
+                ),
+                enabled: !_isSaving,
+                textInputAction: TextInputAction.next,
+                onFieldSubmitted: (_) {
+                  _summaryFocusNode.requestFocus();
+                },
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Please enter a title';
+                  }
+                  return null;
+                },
               ),
-              maxLines: 3,
-              enabled: !_isSaving,
-              textInputAction: TextInputAction.newline, // next → newline 변경
-              // onFieldSubmitted 제거 - Enter는 줄바꿈만
             ),
             const SizedBox(height: 16),
-            TextFormField(
-              controller: _contentController,
-              focusNode: _contentFocusNode,
-              decoration: const InputDecoration(
-                labelText: 'Content',
-                hintText: 'Detailed content',
+
+            // Summary 필드
+            Focus(
+              onKeyEvent: (node, event) {
+                if (event is KeyDownEvent &&
+                    event.logicalKey == LogicalKeyboardKey.tab) {
+                  final isShiftPressed =
+                      HardwareKeyboard.instance.isShiftPressed;
+                  if (!isShiftPressed) {
+                    _contentFocusNode.requestFocus();
+                    return KeyEventResult.handled;
+                  } else {
+                    _titleFocusNode.requestFocus();
+                    return KeyEventResult.handled;
+                  }
+                }
+                return KeyEventResult.ignored;
+              },
+              child: TextFormField(
+                controller: _summaryController,
+                focusNode: _summaryFocusNode,
+                decoration: const InputDecoration(
+                  labelText: 'Summary',
+                  hintText: 'Brief summary for card view',
+                ),
+                maxLines: 3,
+                enabled: !_isSaving,
+                textInputAction: TextInputAction.newline,
               ),
-              maxLines: 10,
-              enabled: !_isSaving,
-              textInputAction: TextInputAction.newline, // next → newline 변경
-              // onFieldSubmitted 제거 - Enter는 줄바꿈만
             ),
             const SizedBox(height: 16),
+
+            // Content 필드
+            Focus(
+              onKeyEvent: (node, event) {
+                if (event is KeyDownEvent &&
+                    event.logicalKey == LogicalKeyboardKey.tab) {
+                  final isShiftPressed =
+                      HardwareKeyboard.instance.isShiftPressed;
+                  if (!isShiftPressed) {
+                    _hashtagFocusNode.requestFocus();
+                    return KeyEventResult.handled;
+                  } else {
+                    _summaryFocusNode.requestFocus();
+                    return KeyEventResult.handled;
+                  }
+                }
+                return KeyEventResult.ignored;
+              },
+              child: TextFormField(
+                controller: _contentController,
+                focusNode: _contentFocusNode,
+                decoration: const InputDecoration(
+                  labelText: 'Content',
+                  hintText: 'Detailed content',
+                ),
+                maxLines: 10,
+                enabled: !_isSaving,
+                textInputAction: TextInputAction.newline,
+              ),
+            ),
+            const SizedBox(height: 16),
+
             Row(
               children: [
                 Expanded(
@@ -270,8 +338,7 @@ class _EditRefScreenState extends State<EditRefScreen> {
                     ),
                     enabled: !_isSaving,
                     textInputAction: TextInputAction.done,
-                    onSubmitted: (_) =>
-                        _addHashtag(), // Hashtag는 한 줄이므로 Enter로 추가 OK
+                    onSubmitted: (_) => _addHashtag(),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -282,6 +349,7 @@ class _EditRefScreenState extends State<EditRefScreen> {
               ],
             ),
             const SizedBox(height: 16),
+
             if (_hashtags.isNotEmpty)
               Wrap(
                 spacing: 8,
