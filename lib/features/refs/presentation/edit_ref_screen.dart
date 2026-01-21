@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/ref_provider.dart';
 import '../../groups/providers/group_provider.dart';
 import '../../../shared/models/ref.dart';
+import '../../../core/theme/app_theme.dart';
 
 class EditRefScreen extends StatefulWidget {
   final Ref ref;
@@ -19,6 +20,13 @@ class _EditRefScreenState extends State<EditRefScreen> {
   late final TextEditingController _summaryController;
   late final TextEditingController _contentController;
   final _hashtagController = TextEditingController();
+
+  // FocusNode 추가
+  final _titleFocusNode = FocusNode();
+  final _summaryFocusNode = FocusNode();
+  final _contentFocusNode = FocusNode();
+  final _hashtagFocusNode = FocusNode();
+
   late List<String> _hashtags;
   late int? _selectedGroupId;
   bool _isSaving = false;
@@ -39,6 +47,10 @@ class _EditRefScreenState extends State<EditRefScreen> {
     _summaryController.dispose();
     _contentController.dispose();
     _hashtagController.dispose();
+    _titleFocusNode.dispose(); // 추가
+    _summaryFocusNode.dispose(); // 추가
+    _contentFocusNode.dispose(); // 추가
+    _hashtagFocusNode.dispose(); // 추가
     super.dispose();
   }
 
@@ -97,6 +109,7 @@ class _EditRefScreenState extends State<EditRefScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Reference'),
         content: const Text(
             'Are you sure you want to delete this reference? This action cannot be undone.'),
@@ -105,9 +118,9 @@ class _EditRefScreenState extends State<EditRefScreen> {
             onPressed: () => Navigator.of(context).pop(false),
             child: const Text('Cancel'),
           ),
-          TextButton(
+          FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
@@ -141,6 +154,7 @@ class _EditRefScreenState extends State<EditRefScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Edit Reference'),
         actions: [
@@ -199,11 +213,17 @@ class _EditRefScreenState extends State<EditRefScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _titleController,
+              focusNode: _titleFocusNode, // 추가
               decoration: const InputDecoration(
                 labelText: 'Title *',
                 hintText: 'Enter reference title',
               ),
               enabled: !_isSaving,
+              textInputAction: TextInputAction.next, // 추가
+              onFieldSubmitted: (_) {
+                // 추가
+                _summaryFocusNode.requestFocus();
+              },
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter a title';
@@ -214,22 +234,34 @@ class _EditRefScreenState extends State<EditRefScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _summaryController,
+              focusNode: _summaryFocusNode, // 추가
               decoration: const InputDecoration(
                 labelText: 'Summary',
                 hintText: 'Brief summary for card view',
               ),
               maxLines: 3,
               enabled: !_isSaving,
+              textInputAction: TextInputAction.next, // 추가
+              onFieldSubmitted: (_) {
+                // 추가
+                _contentFocusNode.requestFocus();
+              },
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _contentController,
+              focusNode: _contentFocusNode, // 추가
               decoration: const InputDecoration(
                 labelText: 'Content',
                 hintText: 'Detailed content',
               ),
               maxLines: 10,
               enabled: !_isSaving,
+              textInputAction: TextInputAction.next, // 추가
+              onFieldSubmitted: (_) {
+                // 추가
+                _hashtagFocusNode.requestFocus();
+              },
             ),
             const SizedBox(height: 16),
             Row(
@@ -237,11 +269,13 @@ class _EditRefScreenState extends State<EditRefScreen> {
                 Expanded(
                   child: TextField(
                     controller: _hashtagController,
+                    focusNode: _hashtagFocusNode, // 추가
                     decoration: const InputDecoration(
                       labelText: 'Hashtag',
                       hintText: 'Add hashtag',
                     ),
                     enabled: !_isSaving,
+                    textInputAction: TextInputAction.done, // 추가
                     onSubmitted: (_) => _addHashtag(),
                   ),
                 ),
@@ -256,6 +290,7 @@ class _EditRefScreenState extends State<EditRefScreen> {
             if (_hashtags.isNotEmpty)
               Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: _hashtags.map((hashtag) {
                   return Chip(
                     label: Text('#$hashtag'),
