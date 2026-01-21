@@ -62,6 +62,33 @@ class AppTheme {
         ),
         scaffoldBackgroundColor: backgroundColor,
 
+        // Drawer 테마
+        drawerTheme: const DrawerThemeData(
+          backgroundColor: Colors.white,
+        ),
+
+        // DropdownMenu 테마 추가
+        dropdownMenuTheme: DropdownMenuThemeData(
+          menuStyle: MenuStyle(
+            backgroundColor: WidgetStateProperty.all(Colors.white),
+          ),
+        ),
+
+        // PopupMenu 테마 추가 (드롭다운 메뉴의 배경)
+        popupMenuTheme: PopupMenuThemeData(
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            side: const BorderSide(color: borderColor, width: 1),
+          ),
+        ),
+
+        menuButtonTheme: MenuButtonThemeData(
+          style: ButtonStyle(
+            backgroundColor: WidgetStateProperty.all(Colors.white),
+          ),
+        ),
+
         // AppBar 테마
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.white,

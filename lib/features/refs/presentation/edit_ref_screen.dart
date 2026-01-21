@@ -200,6 +200,7 @@ class _EditRefScreenState extends State<EditRefScreen> {
                     labelText: 'Group (Optional)',
                     hintText: 'Select a group',
                   ),
+                  dropdownColor: Colors.white,
                   items: [
                     const DropdownMenuItem<int?>(
                       value: null,

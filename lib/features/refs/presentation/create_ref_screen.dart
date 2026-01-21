@@ -118,6 +118,7 @@ class _CreateRefScreenState extends State<CreateRefScreen> {
                     labelText: 'Group (Optional)',
                     hintText: 'Select a group',
                   ),
+                  dropdownColor: Colors.white,
                   items: [
                     const DropdownMenuItem<int?>(
                       value: null,
