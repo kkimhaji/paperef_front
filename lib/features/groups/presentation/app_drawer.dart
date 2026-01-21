@@ -30,6 +30,7 @@ class _AppDrawerState extends State<AppDrawer> {
   @override
   Widget build(BuildContext context) {
     return Drawer(
+      backgroundColor: Colors.white,
       child: Consumer2<GroupProvider, AuthProvider>(
         builder: (context, groupProvider, authProvider, _) {
           return ListView(

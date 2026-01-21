@@ -3,8 +3,8 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // 1. 색상 정의 (static const는 그대로 유지)
-  static const Color primaryColor = Color(0xFF2196F3);
-  static const Color secondaryColor = Color(0xFF03A9F4);
+  static const Color primaryColor = Color.fromARGB(255, 82, 129, 85);
+  static const Color secondaryColor = Color.fromARGB(255, 225, 240, 234);
   static const Color backgroundColor = Color(0xFFFAFAFA);
   static const Color cardColor = Colors.white;
   static const Color borderColor = Color(0xFFE0E0E0);

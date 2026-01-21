@@ -263,7 +263,7 @@ class _RefDetailScreenState extends State<RefDetailScreen> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryColor.withOpacity(0.08),
+                          color: AppTheme.secondaryColor.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
                             color: AppTheme.primaryColor.withOpacity(0.2),
@@ -294,9 +294,9 @@ class _RefDetailScreenState extends State<RefDetailScreen> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.blue[50]?.withOpacity(0.5),
+                      color: Colors.lightGreen[50]?.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.blue[100]!),
+                      border: Border.all(color: Colors.green[100]!),
                     ),
                     child: SelectableText(
                       _ref!.summary!,
