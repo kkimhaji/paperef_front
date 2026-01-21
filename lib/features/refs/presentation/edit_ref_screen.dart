@@ -213,15 +213,15 @@ class _EditRefScreenState extends State<EditRefScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _titleController,
-              focusNode: _titleFocusNode, // 추가
+              focusNode: _titleFocusNode,
               decoration: const InputDecoration(
                 labelText: 'Title *',
                 hintText: 'Enter reference title',
               ),
               enabled: !_isSaving,
-              textInputAction: TextInputAction.next, // 추가
+              textInputAction: TextInputAction.next,
               onFieldSubmitted: (_) {
-                // 추가
+                // Title은 한 줄이므로 Enter로 이동 OK
                 _summaryFocusNode.requestFocus();
               },
               validator: (value) {
@@ -234,34 +234,28 @@ class _EditRefScreenState extends State<EditRefScreen> {
             const SizedBox(height: 16),
             TextFormField(
               controller: _summaryController,
-              focusNode: _summaryFocusNode, // 추가
+              focusNode: _summaryFocusNode,
               decoration: const InputDecoration(
                 labelText: 'Summary',
                 hintText: 'Brief summary for card view',
               ),
               maxLines: 3,
               enabled: !_isSaving,
-              textInputAction: TextInputAction.next, // 추가
-              onFieldSubmitted: (_) {
-                // 추가
-                _contentFocusNode.requestFocus();
-              },
+              textInputAction: TextInputAction.newline, // next → newline 변경
+              // onFieldSubmitted 제거 - Enter는 줄바꿈만
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _contentController,
-              focusNode: _contentFocusNode, // 추가
+              focusNode: _contentFocusNode,
               decoration: const InputDecoration(
                 labelText: 'Content',
                 hintText: 'Detailed content',
               ),
               maxLines: 10,
               enabled: !_isSaving,
-              textInputAction: TextInputAction.next, // 추가
-              onFieldSubmitted: (_) {
-                // 추가
-                _hashtagFocusNode.requestFocus();
-              },
+              textInputAction: TextInputAction.newline, // next → newline 변경
+              // onFieldSubmitted 제거 - Enter는 줄바꿈만
             ),
             const SizedBox(height: 16),
             Row(
@@ -269,14 +263,15 @@ class _EditRefScreenState extends State<EditRefScreen> {
                 Expanded(
                   child: TextField(
                     controller: _hashtagController,
-                    focusNode: _hashtagFocusNode, // 추가
+                    focusNode: _hashtagFocusNode,
                     decoration: const InputDecoration(
                       labelText: 'Hashtag',
                       hintText: 'Add hashtag',
                     ),
                     enabled: !_isSaving,
-                    textInputAction: TextInputAction.done, // 추가
-                    onSubmitted: (_) => _addHashtag(),
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) =>
+                        _addHashtag(), // Hashtag는 한 줄이므로 Enter로 추가 OK
                   ),
                 ),
                 const SizedBox(width: 8),
