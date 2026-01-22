@@ -9,6 +9,7 @@ import 'features/refs/providers/ref_provider.dart';
 import 'features/groups/providers/group_provider.dart';
 import 'features/authentication/presentation/login_screen.dart';
 import 'features/refs/presentation/refs_list_screen.dart';
+import 'features/authentication/presentation/reset_password_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -39,6 +40,22 @@ class MyApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         home: const AuthenticationWrapper(),
         debugShowCheckedModeBanner: false,
+        onGenerateRoute: (settings) {
+          // /reset-password?token=xxx 형식의 URL 처리
+          if (settings.name != null &&
+              settings.name!.startsWith('/reset-password')) {
+            final uri = Uri.parse(settings.name!);
+            final token = uri.queryParameters['token'];
+
+            if (token != null && token.isNotEmpty) {
+              return MaterialPageRoute(
+                builder: (_) => ResetPasswordScreen(token: token),
+              );
+            }
+          }
+
+          return null;
+        },
       ),
     );
   }

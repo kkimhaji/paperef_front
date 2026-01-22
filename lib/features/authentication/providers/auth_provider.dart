@@ -191,4 +191,57 @@ class AuthProvider with ChangeNotifier {
     await _clearUserData();
     print('Logout complete');
   }
+
+  // 비밀번호 재설정 요청
+  Future<bool> requestPasswordReset(String email) async {
+    try {
+      final response = await _apiService.post(
+        '/auth/forgot-password',
+        {'email': email},
+        includeAuth: false,
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        final data = jsonDecode(response.body);
+        _error = data['detail'] ?? 'Failed to send reset email';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      print('Error in requestPasswordReset: $e');
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+// 비밀번호 재설정 확인
+  Future<bool> resetPassword(String token, String newPassword) async {
+    try {
+      final response = await _apiService.post(
+        '/auth/reset-password',
+        {
+          'token': token,
+          'new_password': newPassword,
+        },
+        includeAuth: false,
+      );
+
+      if (response.statusCode == 200) {
+        return true;
+      } else {
+        final data = jsonDecode(response.body);
+        _error = data['detail'] ?? 'Failed to reset password';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      print('Error in resetPassword: $e');
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
 }

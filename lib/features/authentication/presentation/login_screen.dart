@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import 'register_screen.dart';
+import './forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,16 +16,16 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _emailFocusNode = FocusNode(); // 추가
-  final _passwordFocusNode = FocusNode(); // 추가
+  final _emailFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
   bool _isLoading = false;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
-    _emailFocusNode.dispose(); // 추가
-    _passwordFocusNode.dispose(); // 추가
+    _emailFocusNode.dispose();
+    _passwordFocusNode.dispose();
     super.dispose();
   }
 
@@ -95,15 +96,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 48),
                   TextFormField(
                     controller: _emailController,
-                    focusNode: _emailFocusNode, // 추가
+                    focusNode: _emailFocusNode,
                     decoration: const InputDecoration(
                       labelText: 'Email',
                       prefixIcon: Icon(Icons.email_outlined),
                     ),
                     keyboardType: TextInputType.emailAddress,
-                    textInputAction: TextInputAction.next, // 추가
+                    textInputAction: TextInputAction.next,
                     onFieldSubmitted: (_) {
-                      // 추가
                       _passwordFocusNode.requestFocus();
                     },
                     enabled: !_isLoading,
@@ -120,14 +120,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
-                    focusNode: _passwordFocusNode, // 추가
+                    focusNode: _passwordFocusNode,
                     decoration: const InputDecoration(
                       labelText: 'Password',
                       prefixIcon: Icon(Icons.lock_outline),
                     ),
                     obscureText: true,
-                    textInputAction: TextInputAction.done, // 추가
-                    onFieldSubmitted: (_) => _login(), // 추가 - Enter로 로그인
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _login(),
                     enabled: !_isLoading,
                     validator: (value) {
                       if (value == null || value.isEmpty) {
@@ -169,6 +169,33 @@ class _LoginScreenState extends State<LoginScreen> {
                             );
                           },
                     child: const Text('Don\'t have an account? Register'),
+                  ),
+
+                  TextButton(
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const RegisterScreen(),
+                              ),
+                            );
+                          },
+                    child: const Text('Don\'t have an account? Register'),
+                  ),
+                  const SizedBox(height: 8), // 추가
+                  TextButton(
+                    // 추가
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const ForgotPasswordScreen(),
+                              ),
+                            );
+                          },
+                    child: const Text('Forgot your password?'),
                   ),
                 ],
               ),
