@@ -170,22 +170,8 @@ class _LoginScreenState extends State<LoginScreen> {
                           },
                     child: const Text('Don\'t have an account? Register'),
                   ),
-
+                  const SizedBox(height: 8),
                   TextButton(
-                    onPressed: _isLoading
-                        ? null
-                        : () {
-                            Navigator.of(context).push(
-                              MaterialPageRoute(
-                                builder: (_) => const RegisterScreen(),
-                              ),
-                            );
-                          },
-                    child: const Text('Don\'t have an account? Register'),
-                  ),
-                  const SizedBox(height: 8), // 추가
-                  TextButton(
-                    // 추가
                     onPressed: _isLoading
                         ? null
                         : () {
