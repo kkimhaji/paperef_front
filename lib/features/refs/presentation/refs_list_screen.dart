@@ -125,7 +125,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
       body: Column(
         children: [
           // 해시태그 필터
-          // 해시태그 필터
           Consumer<RefProvider>(
             builder: (context, refProvider, _) {
               if (refProvider.hashtags.isEmpty) {
@@ -249,7 +248,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
                     itemCount: refProvider.refs.length,
                     itemBuilder: (context, index) {
                       final ref = refProvider.refs[index];
-                      // itemBuilder 내부의 Card 부분
                       return Container(
                         margin: const EdgeInsets.only(bottom: 12),
                         decoration: BoxDecoration(
@@ -286,13 +284,48 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                 Row(
                                   children: [
                                     Expanded(
-                                      child: Text(
-                                        ref.title,
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .titleLarge,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            ref.title,
+                                            style: Theme.of(context)
+                                                .textTheme
+                                                .titleLarge,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          // 그룹 이름 표시 추가
+                                          if (ref.groupName != null) ...[
+                                            const SizedBox(height: 6),
+                                            Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.folder_outlined,
+                                                  size: 14,
+                                                  color: AppTheme.primaryColor,
+                                                ),
+                                                const SizedBox(width: 4),
+                                                Flexible(
+                                                  child: Text(
+                                                    ref.groupName!,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color:
+                                                          AppTheme.primaryColor,
+                                                      fontWeight:
+                                                          FontWeight.w500,
+                                                    ),
+                                                    maxLines: 1,
+                                                    overflow:
+                                                        TextOverflow.ellipsis,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ),
                                     PopupMenuButton<String>(
@@ -464,7 +497,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
     );
   }
 
-  // _formatDate 함수를 여기에 추가 (build 메서드 아래)
   String _formatDate(DateTime date) {
     final now = DateTime.now();
     final difference = now.difference(date);

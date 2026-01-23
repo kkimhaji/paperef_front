@@ -17,6 +17,7 @@ class Ref {
   final String title;
   final String? summary;
   final String? content;
+  final String? groupName;
   final int? userId;
   final int? groupId;
   final DateTime createdAt;
@@ -30,6 +31,7 @@ class Ref {
     this.content,
     this.userId,
     this.groupId,
+    this.groupName,
     required this.createdAt,
     required this.updatedAt,
     this.hashtags = const [],
@@ -44,6 +46,7 @@ class Ref {
         content: json['content'] as String?,
         userId: json['user_id'] as int?,
         groupId: json['group_id'] as int?,
+        groupName: json['group_name'] as String?,
         createdAt: DateTime.parse(json['created_at'] as String),
         updatedAt: DateTime.parse(json['updated_at'] as String),
         hashtags: (json['hashtags'] as List<dynamic>?)
@@ -66,6 +69,7 @@ class Ref {
       'content': content,
       if (userId != null) 'user_id': userId,
       if (groupId != null) 'group_id': groupId,
+      if (groupName != null) 'group_name': groupName,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt.toIso8601String(),
       'hashtags':
