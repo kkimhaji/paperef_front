@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/ref_provider.dart';
 import '../../groups/providers/group_provider.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 import '../../../shared/models/ref.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -194,37 +195,64 @@ class _EditRefScreenState extends State<EditRefScreen> {
                 // 플랫한 그룹 리스트 가져오기 (서브그룹 포함)
                 final flatGroups = groupProvider.getFlatGroupList();
 
-                return DropdownButtonFormField<int?>(
+                return DropdownButtonFormField2<int?>(
                   value: _selectedGroupId,
                   decoration: const InputDecoration(
                     labelText: 'Group (Optional)',
                     hintText: 'Select a group',
+                    contentPadding:
+                        EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                   ),
-                  dropdownColor: Colors.white,
+                  isExpanded: true,
+                  dropdownStyleData: DropdownStyleData(
+                    maxHeight: 400,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppTheme.borderColor),
+                    ),
+                    offset: const Offset(0, -5), // 위치 조정
+                    scrollbarTheme: ScrollbarThemeData(
+                      radius: const Radius.circular(40),
+                      thickness: MaterialStateProperty.all(6),
+                      thumbVisibility: MaterialStateProperty.all(true),
+                    ),
+                  ),
+                  menuItemStyleData: const MenuItemStyleData(
+                    height: 48,
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  buttonStyleData: const ButtonStyleData(
+                    padding: EdgeInsets.only(right: 8),
+                  ),
+                  iconStyleData: const IconStyleData(
+                    icon: Icon(Icons.arrow_drop_down),
+                    iconSize: 24,
+                  ),
                   items: [
                     const DropdownMenuItem<int?>(
                       value: null,
                       child: Text('No Group'),
                     ),
                     ...flatGroups.map((group) {
+                      final depth = groupProvider.getGroupDepth(group.id);
+                      final indent = '  ' * depth;
+
                       return DropdownMenuItem<int?>(
                         value: group.id,
-                        child: Text('${group.name}'),
+                        child: Text('$indent${group.name}'),
                       );
                     }),
                   ],
-                  onChanged: _isSaving
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _selectedGroupId = value;
-                          });
-                        },
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedGroupId = value;
+                    });
+                  },
                 );
               },
             ),
             const SizedBox(height: 16),
-
             // Title 필드
             Focus(
               onKeyEvent: (node, event) {
