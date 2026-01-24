@@ -12,26 +12,36 @@ class RefProvider with ChangeNotifier {
   String? _error;
   String? _selectedHashtag;
   List<String> _hashtags = [];
+  String? _searchQuery;
 
   List<Ref> get refs => _refs;
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get selectedHashtag => _selectedHashtag;
   List<String> get hashtags => _hashtags;
+  String? get searchQuery => _searchQuery;
 
   RefProvider(this._apiService);
 
   // 레퍼런스 목록 조회
-  Future<void> fetchRefs({String? hashtag, int? groupId}) async {
+  Future<void> fetchRefs({
+    String? hashtag,
+    int? groupId,
+    String? search,
+  }) async {
     _isLoading = true;
     _error = null;
     _selectedHashtag = hashtag;
+    _searchQuery = search;
     notifyListeners();
 
     try {
       final queryParams = <String, String>{};
       if (hashtag != null) queryParams['hashtag'] = hashtag;
       if (groupId != null) queryParams['group_id'] = groupId.toString();
+      if (search != null && search.isNotEmpty) {
+        queryParams['search'] = search;
+      }
 
       final response = await _apiService.get(
         ApiConstants.refs,
@@ -227,6 +237,12 @@ class RefProvider with ChangeNotifier {
   // 필터 초기화
   void clearFilter() {
     _selectedHashtag = null;
+    _searchQuery = null;
     fetchRefs();
+  }
+
+  void clearSearch() {
+    _searchQuery = null;
+    fetchRefs(hashtag: _selectedHashtag);
   }
 }

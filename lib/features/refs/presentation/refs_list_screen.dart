@@ -16,6 +16,9 @@ class RefsListScreen extends StatefulWidget {
 }
 
 class _RefsListScreenState extends State<RefsListScreen> {
+  final _searchController = TextEditingController();
+  bool _isSearching = false;
+
   @override
   void initState() {
     super.initState();
@@ -26,13 +29,48 @@ class _RefsListScreenState extends State<RefsListScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _refreshRefs() async {
     final groupProvider = context.read<GroupProvider>();
+    final refProvider = context.read<RefProvider>();
     final groupId = groupProvider.selectedGroupId;
 
-    await context.read<RefProvider>().fetchRefs(groupId: groupId);
+    await refProvider.fetchRefs(
+      groupId: groupId,
+      search: refProvider.searchQuery,
+      hashtag: refProvider.selectedHashtag,
+    );
     await context.read<RefProvider>().fetchHashtags();
     await context.read<GroupProvider>().fetchGroups();
+  }
+
+  void _performSearch(String query) {
+    final groupId = context.read<GroupProvider>().selectedGroupId;
+    final hashtag = context.read<RefProvider>().selectedHashtag;
+
+    context.read<RefProvider>().fetchRefs(
+          search: query.trim().isEmpty ? null : query.trim(),
+          groupId: groupId,
+          hashtag: hashtag,
+        );
+  }
+
+  void _clearSearch() {
+    _searchController.clear();
+    setState(() {
+      _isSearching = false;
+    });
+    final groupId = context.read<GroupProvider>().selectedGroupId;
+    final hashtag = context.read<RefProvider>().selectedHashtag;
+    context.read<RefProvider>().fetchRefs(
+          groupId: groupId,
+          hashtag: hashtag,
+        );
   }
 
   Future<void> _navigateToEdit(int refId) async {
@@ -68,12 +106,30 @@ class _RefsListScreenState extends State<RefsListScreen> {
   }
 
   Widget _buildTitle(GroupProvider groupProvider) {
+    if (_isSearching) {
+      return TextField(
+        controller: _searchController,
+        autofocus: true,
+        style: const TextStyle(color: Colors.black),
+        decoration: InputDecoration(
+          hintText: 'Search references...',
+          border: InputBorder.none,
+          hintStyle: TextStyle(color: Colors.grey[400]),
+        ),
+        onSubmitted: _performSearch,
+        onChanged: (value) {
+          if (value.isEmpty) {
+            _clearSearch();
+          }
+        },
+      );
+    }
+
     if (groupProvider.selectedGroupId == null) {
       return const Text('All References');
     } else if (groupProvider.selectedGroupId == 0) {
       return const Text('Ungrouped');
     } else {
-      // Breadcrumb 표시
       if (groupProvider.breadcrumbs.isNotEmpty) {
         return SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -115,6 +171,20 @@ class _RefsListScreenState extends State<RefsListScreen> {
           builder: (context, groupProvider, _) => _buildTitle(groupProvider),
         ),
         actions: [
+          if (_isSearching)
+            IconButton(
+              icon: const Icon(Icons.close),
+              onPressed: _clearSearch,
+            )
+          else
+            IconButton(
+              icon: const Icon(Icons.search),
+              onPressed: () {
+                setState(() {
+                  _isSearching = true;
+                });
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _refreshRefs,
@@ -124,6 +194,47 @@ class _RefsListScreenState extends State<RefsListScreen> {
       drawer: const AppDrawer(),
       body: Column(
         children: [
+          // 검색 결과 표시
+          Consumer<RefProvider>(
+            builder: (context, refProvider, _) {
+              if (refProvider.searchQuery != null &&
+                  refProvider.searchQuery!.isNotEmpty) {
+                return Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.search,
+                        size: 16,
+                        color: AppTheme.primaryColor,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Search results for "${refProvider.searchQuery}"',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppTheme.primaryColor,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18),
+                        onPressed: _clearSearch,
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
+                    ],
+                  ),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
+
           // 해시태그 필터
           Consumer<RefProvider>(
             builder: (context, refProvider, _) {
@@ -180,7 +291,10 @@ class _RefsListScreenState extends State<RefsListScreen> {
                               final groupId =
                                   context.read<GroupProvider>().selectedGroupId;
                               refProvider.fetchRefs(
-                                  hashtag: hashtag, groupId: groupId);
+                                hashtag: hashtag,
+                                groupId: groupId,
+                                search: refProvider.searchQuery,
+                              );
                             },
                             backgroundColor: Colors.grey[100],
                             selectedColor:
@@ -235,9 +349,29 @@ class _RefsListScreenState extends State<RefsListScreen> {
                 }
 
                 if (refProvider.refs.isEmpty) {
-                  return const Center(
-                    child: Text(
-                        'No references found. Create your first reference!'),
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          refProvider.searchQuery != null
+                              ? Icons.search_off
+                              : Icons.note_add_outlined,
+                          size: 64,
+                          color: Colors.grey[300],
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          refProvider.searchQuery != null
+                              ? 'No results found'
+                              : 'No references found. Create your first reference!',
+                          style: TextStyle(
+                            color: AppTheme.textSecondary,
+                            fontSize: 16,
+                          ),
+                        ),
+                      ],
+                    ),
                   );
                 }
 
@@ -296,7 +430,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                             maxLines: 2,
                                             overflow: TextOverflow.ellipsis,
                                           ),
-                                          // 그룹 이름 표시 추가
                                           if (ref.groupName != null) ...[
                                             const SizedBox(height: 6),
                                             Row(
