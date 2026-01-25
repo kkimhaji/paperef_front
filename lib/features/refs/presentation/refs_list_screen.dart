@@ -7,6 +7,7 @@ import 'ref_detail_screen.dart';
 import 'create_ref_screen.dart';
 import 'edit_ref_screen.dart';
 import '../../../core/theme/app_theme.dart';
+import 'dart:async';
 
 class RefsListScreen extends StatefulWidget {
   const RefsListScreen({super.key});
@@ -18,6 +19,7 @@ class RefsListScreen extends StatefulWidget {
 class _RefsListScreenState extends State<RefsListScreen> {
   final _searchController = TextEditingController();
   bool _isSearching = false;
+  Timer? _debounce;
 
   @override
   void initState() {
@@ -32,7 +34,29 @@ class _RefsListScreenState extends State<RefsListScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  void _onSearchChanged(String query) {
+    // 이전 타이머 취소
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+
+    // 새 타이머 시작 (500ms 후 검색 실행)
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      if (query.trim().isEmpty) {
+        // 빈 문자열이면 검색 초기화 (검색창은 유지)
+        final groupId = context.read<GroupProvider>().selectedGroupId;
+        final hashtag = context.read<RefProvider>().selectedHashtag;
+        context.read<RefProvider>().fetchRefs(
+              groupId: groupId,
+              hashtag: hashtag,
+            );
+      } else {
+        // 검색 실행
+        _performSearch(query);
+      }
+    });
   }
 
   Future<void> _refreshRefs() async {
@@ -117,11 +141,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
           hintStyle: TextStyle(color: Colors.grey[400]),
         ),
         onSubmitted: _performSearch,
-        onChanged: (value) {
-          if (value.isEmpty) {
-            _clearSearch();
-          }
-        },
+        onChanged: _onSearchChanged, // 실시간 검색 (debounced)
       );
     }
 
