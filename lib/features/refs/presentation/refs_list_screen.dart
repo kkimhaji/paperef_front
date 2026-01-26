@@ -18,6 +18,7 @@ class RefsListScreen extends StatefulWidget {
 
 class _RefsListScreenState extends State<RefsListScreen> {
   final _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   bool _isSearching = false;
   Timer? _debounce;
 
@@ -85,6 +86,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
   }
 
   void _clearSearch() {
+    _searchFocusNode.unfocus();
     _searchController.clear();
     setState(() {
       _isSearching = false;
@@ -133,6 +135,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
     if (_isSearching) {
       return TextField(
         controller: _searchController,
+        focusNode: _searchFocusNode, // FocusNode 추가
         autofocus: true,
         style: const TextStyle(color: Colors.black),
         decoration: InputDecoration(
@@ -192,9 +195,18 @@ class _RefsListScreenState extends State<RefsListScreen> {
         ),
         actions: [
           if (_isSearching)
-            IconButton(
-              icon: const Icon(Icons.close),
-              onPressed: _clearSearch,
+            Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTapDown: (_) {
+                  _clearSearch();
+                },
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  child: const Icon(Icons.close),
+                ),
+              ),
             )
           else
             IconButton(
@@ -202,6 +214,9 @@ class _RefsListScreenState extends State<RefsListScreen> {
               onPressed: () {
                 setState(() {
                   _isSearching = true;
+                });
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _searchFocusNode.requestFocus();
                 });
               },
             ),
@@ -241,11 +256,15 @@ class _RefsListScreenState extends State<RefsListScreen> {
                           ),
                         ),
                       ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 18),
-                        onPressed: _clearSearch,
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
+                      GestureDetector(
+                        // IconButton 대신 GestureDetector 사용
+                        onTapDown: (_) {
+                          _clearSearch();
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          child: const Icon(Icons.close, size: 18),
+                        ),
                       ),
                     ],
                   ),
