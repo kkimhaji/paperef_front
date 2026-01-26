@@ -236,7 +236,7 @@ class _EditRefScreenState extends State<EditRefScreen> {
                     ),
                     ...flatGroups.map((group) {
                       final depth = groupProvider.getGroupDepth(group.id);
-                      final indent = '  ' * depth;
+                      final indent = ' └ ' * depth;
 
                       return DropdownMenuItem<int?>(
                         value: group.id,
