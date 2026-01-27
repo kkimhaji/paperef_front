@@ -22,12 +22,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _obscureConfirm = true;
 
   @override
-  void initState() {
-    super.initState();
-    print('ResetPasswordScreen initialized with token: ${widget.token}');
-  }
-
-  @override
   void dispose() {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
