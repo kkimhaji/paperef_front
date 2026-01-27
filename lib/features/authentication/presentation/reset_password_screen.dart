@@ -22,6 +22,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _obscureConfirm = true;
 
   @override
+  void initState() {
+    super.initState();
+    // 토큰이 제대로 전달되었는지 확인
+    print('ResetPasswordScreen initialized with token: ${widget.token}');
+  }
+
+  @override
   void dispose() {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -78,6 +85,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Create New Password'),
+        automaticallyImplyLeading: false, // 뒤로가기 버튼 제거
       ),
       body: Center(
         child: SingleChildScrollView(

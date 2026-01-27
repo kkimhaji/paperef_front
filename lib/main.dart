@@ -41,19 +41,24 @@ class MyApp extends StatelessWidget {
         home: const AuthenticationWrapper(),
         debugShowCheckedModeBanner: false,
         onGenerateRoute: (settings) {
-          // /reset-password?token=xxx 형식의 URL 처리
-          if (settings.name != null &&
-              settings.name!.startsWith('/reset-password')) {
+          // URL 파싱: reset-password?token=xxx 처리
+          if (settings.name != null && settings.name!.isNotEmpty) {
             final uri = Uri.parse(settings.name!);
-            final token = uri.queryParameters['token'];
 
-            if (token != null && token.isNotEmpty) {
-              return MaterialPageRoute(
-                builder: (_) => ResetPasswordScreen(token: token),
-              );
+            // 경로만 추출 (쿼리 파라미터 제외)
+            final path = uri.path;
+
+            // reset-password 경로 처리
+            if (path == '/reset-password' || path == 'reset-password') {
+              final token = uri.queryParameters['token'];
+              if (token != null && token.isNotEmpty) {
+                return MaterialPageRoute(
+                  builder: (_) => ResetPasswordScreen(token: token),
+                  settings: settings,
+                );
+              }
             }
           }
-
           return null;
         },
       ),
