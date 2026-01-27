@@ -41,6 +41,8 @@ class MyApp extends StatelessWidget {
         home: const AuthenticationWrapper(),
         debugShowCheckedModeBanner: false,
         onGenerateRoute: (settings) {
+          print('onGenerateRoute called with: ${settings.name}');
+
           // URL 파싱: reset-password?token=xxx 처리
           if (settings.name != null && settings.name!.isNotEmpty) {
             final uri = Uri.parse(settings.name!);
@@ -52,11 +54,20 @@ class MyApp extends StatelessWidget {
             if (path == '/reset-password' || path == 'reset-password') {
               final token = uri.queryParameters['token'];
               if (token != null && token.isNotEmpty) {
+                print('Navigating to ResetPasswordScreen with token: $token');
                 return MaterialPageRoute(
                   builder: (_) => ResetPasswordScreen(token: token),
                   settings: settings,
                 );
               }
+            }
+
+            // 루트 경로는 AuthenticationWrapper로 처리
+            if (path == '/' || path.isEmpty) {
+              return MaterialPageRoute(
+                builder: (_) => const AuthenticationWrapper(),
+                settings: settings,
+              );
             }
           }
           return null;
@@ -73,6 +84,7 @@ class AuthenticationWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AuthProvider>(
       builder: (context, authProvider, _) {
+        // 초기화 중
         if (!authProvider.isInitialized) {
           return const Scaffold(
             body: Center(
@@ -81,10 +93,14 @@ class AuthenticationWrapper extends StatelessWidget {
           );
         }
 
+        // 인증됨 -> 메인 화면
         if (authProvider.isAuthenticated) {
+          print('User authenticated, showing RefsListScreen');
           return const RefsListScreen();
         }
 
+        // 인증 안됨 -> 로그인 화면
+        print('User not authenticated, showing LoginScreen');
         return const LoginScreen();
       },
     );

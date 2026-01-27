@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:web/web.dart' as web;
 import '../providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
-import 'login_screen.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String token;
@@ -24,7 +24,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   @override
   void initState() {
     super.initState();
-    // 토큰이 제대로 전달되었는지 확인
     print('ResetPasswordScreen initialized with token: ${widget.token}');
   }
 
@@ -37,9 +36,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   Future<void> _resetPassword() async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isLoading = true;
-      });
+      setState(() => _isLoading = true);
 
       final success = await context.read<AuthProvider>().resetPassword(
             widget.token,
@@ -47,21 +44,28 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
           );
 
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
 
         if (success) {
-          Navigator.of(context).pushAndRemoveUntil(
-            MaterialPageRoute(builder: (_) => const LoginScreen()),
-            (route) => false,
-          );
+          // package:web을 사용하여 브라우저 URL을 루트 경로로 변경
+          web.window.history.pushState(null, 'Paperef', '/');
 
+          // 네비게이터 스택을 완전히 초기화하고 루트 경로로 이동
+          if (mounted) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              '/',
+              (route) => false,
+            );
+          }
+
+          // 성공 메시지 표시
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                  'Password reset successfully! Please login with your new password.'),
+                'Password reset successfully! Please login with your new password.',
+              ),
               backgroundColor: Colors.green,
+              duration: Duration(seconds: 3),
             ),
           );
         } else {
@@ -85,7 +89,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
         title: const Text('Create New Password'),
-        automaticallyImplyLeading: false, // 뒤로가기 버튼 제거
+        automaticallyImplyLeading: false,
       ),
       body: Center(
         child: SingleChildScrollView(
@@ -130,9 +134,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                               : Icons.visibility,
                         ),
                         onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
+                          setState(() => _obscurePassword = !_obscurePassword);
                         },
                       ),
                     ),
@@ -162,9 +164,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                               : Icons.visibility,
                         ),
                         onPressed: () {
-                          setState(() {
-                            _obscureConfirm = !_obscureConfirm;
-                          });
+                          setState(() => _obscureConfirm = !_obscureConfirm);
                         },
                       ),
                     ),
