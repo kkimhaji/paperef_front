@@ -135,3 +135,5 @@ firebase_options.dart
 # OS
 .DS_Store
 Thumbs.db
+
+frontend_code.md
