@@ -7,6 +7,7 @@ import '../../../shared/models/group.dart';
 import '../../../core/theme/app_theme.dart';
 import 'create_group_dialog.dart';
 import 'edit_group_dialog.dart';
+import 'delete_group_dialog.dart';
 
 class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
@@ -264,32 +265,18 @@ class _AppDrawerState extends State<AppDrawer> {
                   builder: (_) => EditGroupDialog(group: group),
                 );
               } else if (value == 'delete') {
-                final confirmed = await showDialog<bool>(
+                // 새로운 삭제 다이얼로그 사용
+                final result = await showDialog<bool>(
                   context: context,
-                  builder: (context) => AlertDialog(
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16)),
-                    title: const Text('Delete Group'),
-                    content: Text(
-                      'Are you sure you want to delete "${group.name}"?${hasChildren ? '\n\nThis will also delete all subgroups.' : ''}\n\nReferences will not be deleted.',
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        child: const Text('Cancel'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        style:
-                            FilledButton.styleFrom(backgroundColor: Colors.red),
-                        child: const Text('Delete'),
-                      ),
-                    ],
+                  builder: (_) => DeleteGroupDialog(
+                    group: group,
+                    hasRefs: group.refCount > 0,
                   ),
                 );
 
-                if (confirmed == true) {
-                  await groupProvider.deleteGroup(group.id);
+                if (result == true) {
+                  // 다이얼로그에서 이미 삭제 처리됨
+                  // 여기서는 별도 처리 불필요
                 }
               }
             },

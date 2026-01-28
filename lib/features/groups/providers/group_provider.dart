@@ -266,12 +266,17 @@ class GroupProvider with ChangeNotifier {
     return false;
   }
 
-  // 그룹 삭제
-  Future<bool> deleteGroup(int id) async {
+  Future<bool> deleteGroup(int id, {bool deleteRefs = false}) async {
     try {
-      final response = await _apiService.delete(ApiConstants.groupDetail(id));
+      // 쿼리 파라미터로 delete_refs 전달
+      final queryParams = {'delete_refs': deleteRefs.toString()};
+
+      final response = await _apiService.delete(
+        '${ApiConstants.groupDetail(id)}?delete_refs=$deleteRefs',
+      );
 
       if (response.statusCode == 204) {
+        // 삭제된 그룹이 현재 선택된 그룹이면 선택 해제
         if (_selectedGroupId == id) {
           _selectedGroupId = null;
         }
@@ -281,14 +286,14 @@ class GroupProvider with ChangeNotifier {
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
-          return await deleteGroup(id);
+          return await deleteGroup(id, deleteRefs: deleteRefs);
         }
       }
     } catch (e) {
       print('Error in deleteGroup: $e');
       _error = e.toString();
-      notifyListeners();
     }
+    notifyListeners();
     return false;
   }
 
