@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/group_provider.dart';
-import '../../../features/refs/providers/ref_provider.dart';
-import '../../../features/authentication/providers/auth_provider.dart';
-import '../../../shared/models/group.dart';
-import '../../../core/theme/app_theme.dart';
+import '../../../../features/refs/providers/ref_provider.dart';
+import '../../../../features/authentication/providers/auth_provider.dart';
+import '../../../../shared/models/group.dart';
+import '../../../../core/theme/app_theme.dart';
 import 'create_group_dialog.dart';
 import 'edit_group_dialog.dart';
 import 'delete_group_dialog.dart';
@@ -20,7 +20,7 @@ class _AppDrawerState extends State<AppDrawer> {
   @override
   void initState() {
     super.initState();
-    // Drawer가 열릴 때 그룹 목록 로드
+    // Drawer가 열릴 때 그룹 트리 로드
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<GroupProvider>().fetchGroupTree();
@@ -126,9 +126,7 @@ class _AppDrawerState extends State<AppDrawer> {
                             ),
                       ),
                       TextButton(
-                        onPressed: () {
-                          groupProvider.fetchGroupTree();
-                        },
+                        onPressed: () => groupProvider.fetchGroupTree(),
                         child: const Text('Retry'),
                       ),
                     ],
@@ -147,11 +145,11 @@ class _AppDrawerState extends State<AppDrawer> {
                   ),
                 )
               else
-                // groupTree가 있으면 트리로, 없으면 플랫 리스트로 표시
-                ...(groupProvider.groupTree.isNotEmpty
+                // 그룹 트리 표시
+                ...groupProvider.groupTree.isNotEmpty
                     ? _buildGroupTree(
                         context, groupProvider, groupProvider.groupTree, 0)
-                    : _buildFlatGroupList(context, groupProvider)),
+                    : _buildFlatGroupList(context, groupProvider),
               const Divider(),
               ListTile(
                 leading: const Icon(Icons.logout),
@@ -170,7 +168,6 @@ class _AppDrawerState extends State<AppDrawer> {
     );
   }
 
-  // 트리 구조로 그룹 표시
   List<Widget> _buildGroupTree(
     BuildContext context,
     GroupProvider groupProvider,
@@ -178,28 +175,18 @@ class _AppDrawerState extends State<AppDrawer> {
     int depth,
   ) {
     List<Widget> widgets = [];
-
     for (var group in groups) {
-      widgets.add(
-        _buildGroupTile(context, groupProvider, group, depth),
-      );
-
-      // 자식 그룹이 있으면 재귀적으로 표시
+      widgets.add(_buildGroupTile(context, groupProvider, group, depth));
       if (group.children != null && group.children!.isNotEmpty) {
-        widgets.addAll(
-          _buildGroupTree(context, groupProvider, group.children!, depth + 1),
-        );
+        widgets.addAll(_buildGroupTree(
+            context, groupProvider, group.children!, depth + 1));
       }
     }
-
     return widgets;
   }
 
-  // 플랫 리스트로 그룹 표시 (폴백)
   List<Widget> _buildFlatGroupList(
-    BuildContext context,
-    GroupProvider groupProvider,
-  ) {
+      BuildContext context, GroupProvider groupProvider) {
     return groupProvider.groups.map((group) {
       return _buildGroupTile(context, groupProvider, group, 0);
     }).toList();
@@ -216,7 +203,7 @@ class _AppDrawerState extends State<AppDrawer> {
 
     return ListTile(
       contentPadding: EdgeInsets.only(
-        left: 16.0 + (depth * 20.0), // 들여쓰기
+        left: 16.0 + (depth * 20.0),
         right: 8,
       ),
       leading: Icon(
@@ -254,7 +241,7 @@ class _AppDrawerState extends State<AppDrawer> {
             ),
           PopupMenuButton<String>(
             onSelected: (value) async {
-              if (value == 'add_subgroup') {
+              if (value == 'addsubgroup') {
                 showDialog(
                   context: context,
                   builder: (_) => CreateGroupDialog(parentId: group.id),
@@ -280,9 +267,9 @@ class _AppDrawerState extends State<AppDrawer> {
                 }
               }
             },
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                value: 'add_subgroup',
+            itemBuilder: (context) => const [
+              PopupMenuItem(
+                value: 'addsubgroup',
                 child: Row(
                   children: [
                     Icon(Icons.create_new_folder, size: 18),
@@ -291,7 +278,7 @@ class _AppDrawerState extends State<AppDrawer> {
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'edit',
                 child: Row(
                   children: [
@@ -301,7 +288,7 @@ class _AppDrawerState extends State<AppDrawer> {
                   ],
                 ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'delete',
                 child: Row(
                   children: [

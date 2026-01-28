@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/group_provider.dart';
+import '../../../features/refs/providers/ref_provider.dart';
 import '../../../shared/models/group.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -41,17 +42,36 @@ class _DeleteGroupDialogState extends State<DeleteGroupDialog> {
       setState(() => _isDeleting = false);
 
       if (success) {
-        Navigator.of(context).pop(true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              deleteRefs
-                  ? 'Group and all references deleted successfully'
-                  : 'Group deleted. References moved to ungrouped.',
-            ),
-            backgroundColor: Colors.green,
-          ),
+        // 레퍼런스 리스트 새로고침
+        final groupProvider = context.read<GroupProvider>();
+        final refProvider = context.read<RefProvider>();
+
+        // 현재 선택된 그룹 ID 가져오기
+        final currentGroupId = groupProvider.selectedGroupId;
+
+        // 레퍼런스 리스트 갱신
+        await refProvider.fetchRefs(
+          groupId: currentGroupId,
+          hashtag: refProvider.selectedHashtag,
+          search: refProvider.searchQuery,
         );
+
+        // 해시태그 리스트도 갱신 (삭제된 레퍼런스의 해시태그가 있을 수 있음)
+        await refProvider.fetchHashtags();
+
+        if (mounted) {
+          Navigator.of(context).pop(true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                deleteRefs
+                    ? 'Group and all references deleted successfully'
+                    : 'Group deleted. References moved to ungrouped.',
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
