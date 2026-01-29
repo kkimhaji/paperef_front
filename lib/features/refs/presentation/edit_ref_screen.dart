@@ -236,8 +236,12 @@ class _EditRefScreenState extends State<EditRefScreen> {
                     ),
                     ...flatGroups.map((group) {
                       final depth = groupProvider.getGroupDepth(group.id);
-                      final indent = ' └ ' * depth;
-
+                      var indent;
+                      if (depth > 0) {
+                        indent = ' ' * depth + '└';
+                      } else {
+                        indent = '';
+                      }
                       return DropdownMenuItem<int?>(
                         value: group.id,
                         child: Text('$indent${group.name}'),

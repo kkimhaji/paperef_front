@@ -153,7 +153,12 @@ class _CreateRefScreenState extends State<CreateRefScreen> {
                     ),
                     ...flatGroups.map((group) {
                       final depth = groupProvider.getGroupDepth(group.id);
-                      final indent = ' └ ' * depth;
+                      var indent;
+                      if (depth > 0) {
+                        indent = ' ' * depth + '└';
+                      } else {
+                        indent = '';
+                      }
 
                       return DropdownMenuItem<int?>(
                         value: group.id,
