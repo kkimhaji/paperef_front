@@ -272,13 +272,15 @@ class GroupProvider with ChangeNotifier {
       final queryParams = {'delete_refs': deleteRefs.toString()};
 
       final response = await _apiService.delete(
-        '${ApiConstants.groupDetail(id)}?delete_refs=$deleteRefs',
+        ApiConstants.groupDetail(id),
+        queryParameters: queryParams,
       );
 
       if (response.statusCode == 204) {
         // 삭제된 그룹이 현재 선택된 그룹이면 선택 해제
         if (_selectedGroupId == id) {
           _selectedGroupId = null;
+          _breadcrumbs = [];
         }
         await fetchGroups(parentId: _currentParentId);
         await fetchGroupTree();

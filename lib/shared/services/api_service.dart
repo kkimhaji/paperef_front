@@ -89,8 +89,14 @@ class ApiService {
   }
 
   // DELETE 요청
-  Future<http.Response> delete(String endpoint) async {
-    final url = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+  Future<http.Response> delete(
+    String endpoint, {
+    Map<String, String>? queryParameters,
+  }) async {
+    var url = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+    if (queryParameters != null && queryParameters.isNotEmpty) {
+      url = url.replace(queryParameters: queryParameters);
+    }
     final headers = await _getHeaders();
 
     return await http.delete(url, headers: headers);
