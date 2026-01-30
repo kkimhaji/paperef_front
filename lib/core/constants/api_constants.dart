@@ -21,4 +21,5 @@ class ApiConstants {
   static const String groupsTree = '/groups/tree';
   static String groupDetail(int id) => '/groups/$id';
   static String groupPath(int id) => '/groups/$id/path';
+  static String groupRefCount(int id) => '/groups/$id/ref-count';
 }

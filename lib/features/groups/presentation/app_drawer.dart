@@ -257,7 +257,6 @@ class _AppDrawerState extends State<AppDrawer> {
                   context: context,
                   builder: (_) => DeleteGroupDialog(
                     group: group,
-                    hasRefs: group.refCount > 0,
                   ),
                 );
 

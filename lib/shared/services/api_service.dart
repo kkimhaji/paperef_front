@@ -88,17 +88,18 @@ class ApiService {
     );
   }
 
-  // DELETE 요청
   Future<http.Response> delete(
     String endpoint, {
     Map<String, String>? queryParameters,
   }) async {
     var url = Uri.parse('${ApiConstants.baseUrl}$endpoint');
+
+    // 쿼리 파라미터가 있으면 URL에 추가
     if (queryParameters != null && queryParameters.isNotEmpty) {
       url = url.replace(queryParameters: queryParameters);
     }
-    final headers = await _getHeaders();
 
+    final headers = await _getHeaders();
     return await http.delete(url, headers: headers);
   }
 

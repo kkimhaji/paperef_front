@@ -266,6 +266,37 @@ class GroupProvider with ChangeNotifier {
     return false;
   }
 
+  /// 그룹의 전체 레퍼런스 개수 조회 (서브그룹 포함)
+  Future<Map<String, dynamic>?> getGroupRefCount(
+    int id, {
+    bool includeSubgroups = true,
+  }) async {
+    try {
+      final queryParams = <String, String>{
+        'include_subgroups': includeSubgroups.toString(),
+      };
+
+      final response = await _apiService.get(
+        ApiConstants.groupRefCount(id),
+        queryParameters: queryParams,
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return data;
+      } else if (response.statusCode == 401) {
+        final refreshed = await _apiService.refreshAccessToken();
+        if (refreshed) {
+          return await getGroupRefCount(id, includeSubgroups: includeSubgroups);
+        }
+      }
+    } catch (e) {
+      print('Error in getGroupRefCount: $e');
+      _error = e.toString();
+    }
+    return null;
+  }
+
   Future<bool> deleteGroup(int id, {bool deleteRefs = false}) async {
     try {
       // 쿼리 파라미터로 delete_refs 전달
