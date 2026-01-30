@@ -281,45 +281,6 @@ class _RefDetailScreenState extends State<RefDetailScreen> {
 
               const SizedBox(height: 16),
 
-              // Hashtags Card
-              if (_ref!.hashtags.isNotEmpty) ...[
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppTheme.borderColor),
-                  ),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _ref!.hashtags.map((hashtag) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: AppTheme.secondaryColor.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(
-                            color: AppTheme.primaryColor.withOpacity(0.2),
-                          ),
-                        ),
-                        child: Text(
-                          '#${hashtag.name}',
-                          style: TextStyle(
-                            color: AppTheme.primaryColor,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-                const SizedBox(height: 16),
-              ],
-
               // Summary Section
               if (_ref!.summary != null && _ref!.summary!.isNotEmpty) ...[
                 _buildSection(
@@ -357,6 +318,45 @@ class _RefDetailScreenState extends State<RefDetailScreen> {
                           height: 1.7,
                           letterSpacing: 0.2,
                         ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Hashtags Card
+              if (_ref!.hashtags.isNotEmpty) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.borderColor),
+                  ),
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _ref!.hashtags.map((hashtag) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: AppTheme.secondaryColor.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppTheme.primaryColor.withOpacity(0.2),
+                          ),
+                        ),
+                        child: Text(
+                          '#${hashtag.name}',
+                          style: TextStyle(
+                            color: AppTheme.primaryColor,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
               ],
