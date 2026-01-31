@@ -35,6 +35,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.dispose();
     _debounce?.cancel();
     super.dispose();
   }
@@ -135,7 +136,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
     if (_isSearching) {
       return TextField(
         controller: _searchController,
-        focusNode: _searchFocusNode, // FocusNode 추가
+        focusNode: _searchFocusNode,
         autofocus: true,
         style: const TextStyle(color: Colors.black),
         decoration: InputDecoration(
@@ -144,7 +145,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
           hintStyle: TextStyle(color: Colors.grey[400]),
         ),
         onSubmitted: _performSearch,
-        onChanged: _onSearchChanged, // 실시간 검색 (debounced)
+        onChanged: _onSearchChanged,
       );
     }
 
@@ -194,6 +195,34 @@ class _RefsListScreenState extends State<RefsListScreen> {
           builder: (context, groupProvider, _) => _buildTitle(groupProvider),
         ),
         actions: [
+          // 하위 그룹 포함 토글 버튼 추가
+          Consumer2<GroupProvider, RefProvider>(
+            builder: (context, groupProvider, refProvider, _) {
+              // 그룹이 선택되지 않았거나 Ungrouped/All References인 경우 숨김
+              if (groupProvider.selectedGroupId == null ||
+                  groupProvider.selectedGroupId == 0) {
+                return const SizedBox.shrink();
+              }
+
+              return IconButton(
+                icon: Icon(
+                  refProvider.includeSubgroups
+                      ? Icons.account_tree
+                      : Icons.folder,
+                ),
+                tooltip: refProvider.includeSubgroups
+                    ? 'Including subgroups'
+                    : 'Current group only',
+                color: refProvider.includeSubgroups
+                    ? AppTheme.primaryColor
+                    : Colors.grey[600],
+                onPressed: () {
+                  refProvider.toggleIncludeSubgroups();
+                  _refreshRefs();
+                },
+              );
+            },
+          ),
           if (_isSearching)
             Material(
               color: Colors.transparent,
@@ -257,7 +286,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
                         ),
                       ),
                       GestureDetector(
-                        // IconButton 대신 GestureDetector 사용
                         onTapDown: (_) {
                           _clearSearch();
                         },
