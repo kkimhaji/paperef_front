@@ -13,21 +13,31 @@ class RefProvider with ChangeNotifier {
   String? _selectedHashtag;
   List<String> _hashtags = [];
   String? _searchQuery;
+  bool _includeSubgroups = true;
 
+  // Getters
   List<Ref> get refs => _refs;
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get selectedHashtag => _selectedHashtag;
   List<String> get hashtags => _hashtags;
   String? get searchQuery => _searchQuery;
+  bool get includeSubgroups => _includeSubgroups;
 
   RefProvider(this._apiService);
 
-  // 레퍼런스 목록 조회
+  /// 하위 그룹 포함 여부 토글
+  void toggleIncludeSubgroups() {
+    _includeSubgroups = !_includeSubgroups;
+    notifyListeners();
+  }
+
+  /// 레퍼런스 목록 조회
   Future<void> fetchRefs({
     String? hashtag,
     int? groupId,
     String? search,
+    bool? includeSubgroups,
   }) async {
     _isLoading = true;
     _error = null;
@@ -37,11 +47,22 @@ class RefProvider with ChangeNotifier {
 
     try {
       final queryParams = <String, String>{};
-      if (hashtag != null) queryParams['hashtag'] = hashtag;
-      if (groupId != null) queryParams['group_id'] = groupId.toString();
+
+      if (hashtag != null) {
+        queryParams['hashtag'] = hashtag;
+      }
+
+      if (groupId != null) {
+        queryParams['group_id'] = groupId.toString();
+      }
+
       if (search != null && search.isNotEmpty) {
         queryParams['search'] = search;
       }
+
+      // 하위 그룹 포함 여부
+      queryParams['include_subgroups'] =
+          (includeSubgroups ?? _includeSubgroups).toString();
 
       final response = await _apiService.get(
         ApiConstants.refs,
@@ -57,13 +78,19 @@ class RefProvider with ChangeNotifier {
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
-          await fetchRefs(hashtag: hashtag, groupId: groupId);
+          await fetchRefs(
+            hashtag: hashtag,
+            groupId: groupId,
+            search: search,
+            includeSubgroups: includeSubgroups,
+          );
           return;
         } else {
-          _error = 'Session expired. Please login again.';
+          _error = "Session expired. Please login again.";
         }
       } else {
-        _error = 'Failed to load refs: ${response.statusCode}';
+        _error = "Failed to load refs: ${response.statusCode}";
+        print('Error response: ${response.body}');
       }
     } catch (e) {
       print('Error in fetchRefs: $e');
@@ -74,7 +101,6 @@ class RefProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  // 특정 레퍼런스 조회
   Future<Ref?> fetchRef(int id) async {
     try {
       final response = await _apiService.get(ApiConstants.refDetail(id));
@@ -94,7 +120,6 @@ class RefProvider with ChangeNotifier {
     return null;
   }
 
-  // 레퍼런스 생성
   Future<bool> createRef({
     required String title,
     String? summary,
@@ -103,19 +128,19 @@ class RefProvider with ChangeNotifier {
     List<String>? hashtags,
   }) async {
     try {
+      final body = <String, dynamic>{
+        'title': title,
+        'summary': summary,
+        'content': content,
+        'group_id': groupId,
+        'hashtags': hashtags ?? [],
+      };
+
       final response = await _apiService.post(
         ApiConstants.refs,
-        {
-          'title': title,
-          'summary': summary,
-          'content': content,
-          'group_id': groupId,
-          'hashtags': hashtags ?? [],
-        },
+        body,
         includeAuth: true,
       );
-
-      print('Create ref response status: ${response.statusCode}');
 
       if (response.statusCode == 201) {
         await fetchRefs();
@@ -140,12 +165,11 @@ class RefProvider with ChangeNotifier {
     } catch (e) {
       print('Error in createRef: $e');
       _error = e.toString();
-      notifyListeners();
     }
+    notifyListeners();
     return false;
   }
 
-  // 레퍼런스 수정
   Future<bool> updateRef({
     required int id,
     String? title,
@@ -187,12 +211,11 @@ class RefProvider with ChangeNotifier {
     } catch (e) {
       print('Error in updateRef: $e');
       _error = e.toString();
-      notifyListeners();
     }
+    notifyListeners();
     return false;
   }
 
-  // 레퍼런스 삭제
   Future<bool> deleteRef(int id) async {
     try {
       final response = await _apiService.delete(ApiConstants.refDetail(id));
@@ -210,12 +233,11 @@ class RefProvider with ChangeNotifier {
     } catch (e) {
       print('Error in deleteRef: $e');
       _error = e.toString();
-      notifyListeners();
     }
+    notifyListeners();
     return false;
   }
 
-  // 해시태그 목록 조회
   Future<void> fetchHashtags() async {
     try {
       final response = await _apiService.get(ApiConstants.hashtags);
@@ -234,7 +256,6 @@ class RefProvider with ChangeNotifier {
     }
   }
 
-  // 필터 초기화
   void clearFilter() {
     _selectedHashtag = null;
     _searchQuery = null;
