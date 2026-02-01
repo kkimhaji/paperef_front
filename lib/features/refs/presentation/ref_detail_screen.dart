@@ -4,7 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/ref_provider.dart';
 import '../../../shared/models/ref.dart';
 import '../../../core/theme/app_theme.dart';
-import 'edit_ref_screen.dart';
+import 'ref_form_screen.dart';
 
 class RefDetailScreen extends StatefulWidget {
   final int refId;
@@ -45,7 +45,7 @@ class _RefDetailScreenState extends State<RefDetailScreen> {
 
     final result = await Navigator.of(context).push<bool>(
       MaterialPageRoute(
-        builder: (_) => EditRefScreen(ref: _ref!),
+        builder: (_) => RefFormScreen(ref: _ref),
       ),
     );
 

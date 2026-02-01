@@ -1,46 +1,71 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:dropdown_button2/dropdown_button2.dart';
 import '../providers/ref_provider.dart';
 import '../../groups/providers/group_provider.dart';
-import 'package:dropdown_button2/dropdown_button2.dart';
 import '../../../shared/models/ref.dart';
 import '../../../core/theme/app_theme.dart';
 
-class EditRefScreen extends StatefulWidget {
-  final Ref ref;
+/// 레퍼런스 생성 및 수정 화면
+///
+/// [ref]가 null이면 생성 모드, null이 아니면 수정 모드
+class RefFormScreen extends StatefulWidget {
+  final Ref? ref; // null이면 create, 있으면 edit
 
-  const EditRefScreen({super.key, required this.ref});
+  const RefFormScreen({
+    super.key,
+    this.ref,
+  });
 
   @override
-  State<EditRefScreen> createState() => _EditRefScreenState();
+  State<RefFormScreen> createState() => _RefFormScreenState();
 }
 
-class _EditRefScreenState extends State<EditRefScreen> {
+class _RefFormScreenState extends State<RefFormScreen> {
   final _formKey = GlobalKey<FormState>();
+
+  // Controllers
   late final TextEditingController _titleController;
   late final TextEditingController _summaryController;
   late final TextEditingController _contentController;
   final _hashtagController = TextEditingController();
 
-  // FocusNode
+  // FocusNodes
   final _titleFocusNode = FocusNode();
   final _summaryFocusNode = FocusNode();
   final _contentFocusNode = FocusNode();
   final _hashtagFocusNode = FocusNode();
 
+  // State
   late List<String> _hashtags;
   late int? _selectedGroupId;
   bool _isSaving = false;
 
+  /// 수정 모드인지 확인
+  bool get isEditMode => widget.ref != null;
+
+  String _buildGroupPrefix(int depth) {
+    if (depth == 0) return '';
+    return '${'  ' * depth}└ ';
+  }
+
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(text: widget.ref.title);
-    _summaryController = TextEditingController(text: widget.ref.summary ?? '');
-    _contentController = TextEditingController(text: widget.ref.content ?? '');
-    _hashtags = widget.ref.hashtags.map((tag) => tag.name).toList();
-    _selectedGroupId = widget.ref.groupId;
+
+    // 수정 모드면 기존 데이터로 초기화, 생성 모드면 빈 값
+    _titleController = TextEditingController(
+      text: widget.ref?.title ?? '',
+    );
+    _summaryController = TextEditingController(
+      text: widget.ref?.summary ?? '',
+    );
+    _contentController = TextEditingController(
+      text: widget.ref?.content ?? '',
+    );
+    _hashtags = widget.ref?.hashtags.map((tag) => tag.name).toList() ?? [];
+    _selectedGroupId = widget.ref?.groupId;
 
     // 그룹 트리 로드
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -69,8 +94,8 @@ class _EditRefScreenState extends State<EditRefScreen> {
     if (hashtag.isNotEmpty && !_hashtags.contains(hashtag)) {
       setState(() {
         _hashtags.add(hashtag);
-        _hashtagController.clear();
       });
+      _hashtagController.clear();
     }
   }
 
@@ -80,49 +105,76 @@ class _EditRefScreenState extends State<EditRefScreen> {
     });
   }
 
-  Future<void> _saveRef() async {
-    if (_formKey.currentState!.validate()) {
-      setState(() {
-        _isSaving = true;
-      });
+  Future<void> _save() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      final success = await context.read<RefProvider>().updateRef(
-            id: widget.ref.id,
-            title: _titleController.text,
-            summary: _summaryController.text.isEmpty
-                ? null
-                : _summaryController.text,
-            content: _contentController.text.isEmpty
-                ? null
-                : _contentController.text,
-            groupId: _selectedGroupId,
-            hashtags: _hashtags,
-          );
+    setState(() => _isSaving = true);
 
-      if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
+    final refProvider = context.read<RefProvider>();
+    bool success;
 
-        if (success) {
-          Navigator.of(context).pop(true);
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to update reference')),
-          );
-        }
+    if (isEditMode) {
+      // 수정 모드
+      success = await refProvider.updateRef(
+        id: widget.ref!.id,
+        title: _titleController.text.trim(),
+        summary: _summaryController.text.trim().isEmpty
+            ? null
+            : _summaryController.text.trim(),
+        content: _contentController.text.trim().isEmpty
+            ? null
+            : _contentController.text.trim(),
+        groupId: _selectedGroupId,
+        hashtags: _hashtags,
+      );
+    } else {
+      // 생성 모드
+      success = await refProvider.createRef(
+        title: _titleController.text.trim(),
+        summary: _summaryController.text.trim().isEmpty
+            ? null
+            : _summaryController.text.trim(),
+        content: _contentController.text.trim().isEmpty
+            ? null
+            : _contentController.text.trim(),
+        groupId: _selectedGroupId,
+        hashtags: _hashtags,
+      );
+    }
+
+    if (mounted) {
+      setState(() => _isSaving = false);
+
+      if (success) {
+        Navigator.of(context).pop(true);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              isEditMode
+                  ? 'Failed to update reference'
+                  : 'Failed to create reference',
+            ),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }
 
-  Future<void> _deleteRef() async {
+  Future<void> _delete() async {
+    if (!isEditMode) return;
+
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
         title: const Text('Delete Reference'),
         content: const Text(
-            'Are you sure you want to delete this reference? This action cannot be undone.'),
+          'Are you sure you want to delete this reference? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -138,23 +190,22 @@ class _EditRefScreenState extends State<EditRefScreen> {
     );
 
     if (confirmed == true && mounted) {
-      setState(() {
-        _isSaving = true;
-      });
+      setState(() => _isSaving = true);
 
       final success =
-          await context.read<RefProvider>().deleteRef(widget.ref.id);
+          await context.read<RefProvider>().deleteRef(widget.ref!.id);
 
       if (mounted) {
-        setState(() {
-          _isSaving = false;
-        });
+        setState(() => _isSaving = false);
 
         if (success) {
           Navigator.of(context).pop(true);
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to delete reference')),
+            const SnackBar(
+              content: Text('Failed to delete reference'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -166,20 +217,26 @@ class _EditRefScreenState extends State<EditRefScreen> {
     return Scaffold(
       backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: const Text('Edit Reference'),
+        title: Text(isEditMode ? 'Edit Reference' : 'New Reference'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.delete),
-            onPressed: _isSaving ? null : _deleteRef,
-            tooltip: 'Delete',
-          ),
+          // 수정 모드일 때만 삭제 버튼 표시
+          if (isEditMode)
+            IconButton(
+              icon: const Icon(Icons.delete),
+              onPressed: _isSaving ? null : _delete,
+              tooltip: 'Delete',
+            ),
+          // 저장 버튼
           TextButton(
-            onPressed: _isSaving ? null : _saveRef,
+            onPressed: _isSaving ? null : _save,
             child: _isSaving
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    ),
                   )
                 : const Text('Save'),
           ),
@@ -190,9 +247,9 @@ class _EditRefScreenState extends State<EditRefScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            // 그룹 선택 드롭다운
             Consumer<GroupProvider>(
               builder: (context, groupProvider, _) {
-                // 플랫한 그룹 리스트 가져오기 (서브그룹 포함)
                 final flatGroups = groupProvider.getFlatGroupList();
 
                 return DropdownButtonFormField2<int?>(
@@ -200,8 +257,10 @@ class _EditRefScreenState extends State<EditRefScreen> {
                   decoration: const InputDecoration(
                     labelText: 'Group (Optional)',
                     hintText: 'Select a group',
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                    contentPadding: EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
                   ),
                   isExpanded: true,
                   dropdownStyleData: DropdownStyleData(
@@ -211,7 +270,7 @@ class _EditRefScreenState extends State<EditRefScreen> {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: AppTheme.borderColor),
                     ),
-                    offset: const Offset(0, -5), // 위치 조정
+                    offset: const Offset(0, -5),
                     scrollbarTheme: ScrollbarThemeData(
                       radius: const Radius.circular(40),
                       thickness: MaterialStateProperty.all(6),
@@ -223,6 +282,7 @@ class _EditRefScreenState extends State<EditRefScreen> {
                     padding: EdgeInsets.symmetric(horizontal: 16),
                   ),
                   buttonStyleData: const ButtonStyleData(
+                    height: 56,
                     padding: EdgeInsets.only(right: 8),
                   ),
                   iconStyleData: const IconStyleData(
@@ -236,28 +296,27 @@ class _EditRefScreenState extends State<EditRefScreen> {
                     ),
                     ...flatGroups.map((group) {
                       final depth = groupProvider.getGroupDepth(group.id);
-                      var indent;
-                      if (depth > 0) {
-                        indent = ' ' * depth + '└';
-                      } else {
-                        indent = '';
-                      }
+                      final prefix = _buildGroupPrefix(depth);
+
                       return DropdownMenuItem<int?>(
                         value: group.id,
-                        child: Text('$indent${group.name}'),
+                        child: Text('$prefix${group.name}'),
                       );
                     }),
                   ],
-                  onChanged: (value) {
-                    setState(() {
-                      _selectedGroupId = value;
-                    });
-                  },
+                  onChanged: _isSaving
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _selectedGroupId = value;
+                          });
+                        },
                 );
               },
             ),
             const SizedBox(height: 16),
-            // Title 필드
+
+            // 제목
             Focus(
               onKeyEvent: (node, event) {
                 if (event is KeyDownEvent &&
@@ -280,11 +339,9 @@ class _EditRefScreenState extends State<EditRefScreen> {
                 ),
                 enabled: !_isSaving,
                 textInputAction: TextInputAction.next,
-                onFieldSubmitted: (_) {
-                  _summaryFocusNode.requestFocus();
-                },
+                onFieldSubmitted: (_) => _summaryFocusNode.requestFocus(),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
+                  if (value == null || value.trim().isEmpty) {
                     return 'Please enter a title';
                   }
                   return null;
@@ -293,7 +350,7 @@ class _EditRefScreenState extends State<EditRefScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Summary 필드
+            // 요약
             Focus(
               onKeyEvent: (node, event) {
                 if (event is KeyDownEvent &&
@@ -317,14 +374,14 @@ class _EditRefScreenState extends State<EditRefScreen> {
                   labelText: 'Summary',
                   hintText: 'Brief summary for card view',
                 ),
-                maxLines: 3,
                 enabled: !_isSaving,
+                maxLines: 3,
                 textInputAction: TextInputAction.newline,
               ),
             ),
             const SizedBox(height: 16),
 
-            // Content 필드
+            // 내용
             Focus(
               onKeyEvent: (node, event) {
                 if (event is KeyDownEvent &&
@@ -348,13 +405,14 @@ class _EditRefScreenState extends State<EditRefScreen> {
                   labelText: 'Content',
                   hintText: 'Detailed content',
                 ),
-                maxLines: 10,
                 enabled: !_isSaving,
+                maxLines: 10,
                 textInputAction: TextInputAction.newline,
               ),
             ),
             const SizedBox(height: 16),
 
+            // 해시태그 입력
             Row(
               children: [
                 Expanded(
@@ -379,6 +437,7 @@ class _EditRefScreenState extends State<EditRefScreen> {
             ),
             const SizedBox(height: 16),
 
+            // 해시태그 목록
             if (_hashtags.isNotEmpty)
               Wrap(
                 spacing: 8,

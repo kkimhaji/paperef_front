@@ -4,8 +4,7 @@ import '../providers/ref_provider.dart';
 import '../../groups/providers/group_provider.dart';
 import '../../groups/presentation/app_drawer.dart';
 import 'ref_detail_screen.dart';
-import 'create_ref_screen.dart';
-import 'edit_ref_screen.dart';
+import 'ref_form_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import 'dart:async';
 
@@ -117,7 +116,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
       if (ref != null) {
         final result = await Navigator.of(context).push<bool>(
           MaterialPageRoute(
-            builder: (_) => EditRefScreen(ref: ref),
+            builder: (_) => RefFormScreen(ref: ref),
           ),
         );
 
@@ -684,7 +683,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
         onPressed: () async {
           final result = await Navigator.of(context).push<bool>(
             MaterialPageRoute(
-              builder: (_) => const CreateRefScreen(),
+              builder: (_) => const RefFormScreen(),
             ),
           );
 
