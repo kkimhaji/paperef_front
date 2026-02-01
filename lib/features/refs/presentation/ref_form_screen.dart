@@ -7,11 +7,8 @@ import '../../groups/providers/group_provider.dart';
 import '../../../shared/models/ref.dart';
 import '../../../core/theme/app_theme.dart';
 
-/// 레퍼런스 생성 및 수정 화면
-///
-/// [ref]가 null이면 생성 모드, null이 아니면 수정 모드
 class RefFormScreen extends StatefulWidget {
-  final Ref? ref; // null이면 create, 있으면 edit
+  final Ref? ref;
 
   const RefFormScreen({
     super.key,
@@ -42,19 +39,12 @@ class _RefFormScreenState extends State<RefFormScreen> {
   late int? _selectedGroupId;
   bool _isSaving = false;
 
-  /// 수정 모드인지 확인
   bool get isEditMode => widget.ref != null;
-
-  String _buildGroupPrefix(int depth) {
-    if (depth == 0) return '';
-    return '${'  ' * depth}└ ';
-  }
 
   @override
   void initState() {
     super.initState();
 
-    // 수정 모드면 기존 데이터로 초기화, 생성 모드면 빈 값
     _titleController = TextEditingController(
       text: widget.ref?.title ?? '',
     );
@@ -67,12 +57,14 @@ class _RefFormScreenState extends State<RefFormScreen> {
     _hashtags = widget.ref?.hashtags.map((tag) => tag.name).toList() ?? [];
     _selectedGroupId = widget.ref?.groupId;
 
-    // 그룹 트리 로드
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final groupProvider = context.read<GroupProvider>();
       if (groupProvider.groupTree.isEmpty) {
         groupProvider.fetchGroupTree();
       }
+
+      // 해시태그 목록 로드
+      context.read<RefProvider>().fetchHashtags();
     });
   }
 
@@ -89,11 +81,11 @@ class _RefFormScreenState extends State<RefFormScreen> {
     super.dispose();
   }
 
-  void _addHashtag() {
-    final hashtag = _hashtagController.text.trim();
-    if (hashtag.isNotEmpty && !_hashtags.contains(hashtag)) {
+  void _addHashtag(String hashtag) {
+    final cleanHashtag = hashtag.trim().toLowerCase();
+    if (cleanHashtag.isNotEmpty && !_hashtags.contains(cleanHashtag)) {
       setState(() {
-        _hashtags.add(hashtag);
+        _hashtags.add(cleanHashtag);
       });
       _hashtagController.clear();
     }
@@ -105,6 +97,11 @@ class _RefFormScreenState extends State<RefFormScreen> {
     });
   }
 
+  String _buildGroupPrefix(int depth) {
+    if (depth == 0) return '';
+    return '${'  ' * depth}└ ';
+  }
+
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -114,7 +111,6 @@ class _RefFormScreenState extends State<RefFormScreen> {
     bool success;
 
     if (isEditMode) {
-      // 수정 모드
       success = await refProvider.updateRef(
         id: widget.ref!.id,
         title: _titleController.text.trim(),
@@ -128,7 +124,6 @@ class _RefFormScreenState extends State<RefFormScreen> {
         hashtags: _hashtags,
       );
     } else {
-      // 생성 모드
       success = await refProvider.createRef(
         title: _titleController.text.trim(),
         summary: _summaryController.text.trim().isEmpty
@@ -219,14 +214,12 @@ class _RefFormScreenState extends State<RefFormScreen> {
       appBar: AppBar(
         title: Text(isEditMode ? 'Edit Reference' : 'New Reference'),
         actions: [
-          // 수정 모드일 때만 삭제 버튼 표시
           if (isEditMode)
             IconButton(
               icon: const Icon(Icons.delete),
               onPressed: _isSaving ? null : _delete,
               tooltip: 'Delete',
             ),
-          // 저장 버튼
           TextButton(
             onPressed: _isSaving ? null : _save,
             child: _isSaving
@@ -412,32 +405,158 @@ class _RefFormScreenState extends State<RefFormScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 해시태그 입력
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _hashtagController,
-                    focusNode: _hashtagFocusNode,
-                    decoration: const InputDecoration(
-                      labelText: 'Hashtag',
-                      hintText: 'Add hashtag',
-                    ),
-                    enabled: !_isSaving,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _addHashtag(),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  onPressed: _isSaving ? null : _addHashtag,
-                  child: const Text('Add'),
-                ),
-              ],
+            // 해시태그 자동완성 입력
+            Consumer<RefProvider>(
+              builder: (context, refProvider, _) {
+                final availableHashtags = refProvider.hashtags
+                    .where((tag) => !_hashtags.contains(tag))
+                    .toList();
+
+                return Autocomplete<String>(
+                  optionsBuilder: (TextEditingValue textEditingValue) {
+                    if (textEditingValue.text.isEmpty) {
+                      return const Iterable<String>.empty();
+                    }
+
+                    // 입력된 텍스트로 필터링
+                    return availableHashtags.where((String option) {
+                      return option
+                          .toLowerCase()
+                          .contains(textEditingValue.text.toLowerCase());
+                    });
+                  },
+                  onSelected: (String selection) {
+                    _addHashtag(selection);
+                  },
+                  fieldViewBuilder: (
+                    BuildContext context,
+                    TextEditingController fieldTextEditingController,
+                    FocusNode fieldFocusNode,
+                    VoidCallback onFieldSubmitted,
+                  ) {
+                    // 외부 controller와 동기화
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      fieldTextEditingController.text = _hashtagController.text;
+                      fieldTextEditingController.selection =
+                          _hashtagController.selection;
+                    });
+
+                    fieldTextEditingController.addListener(() {
+                      _hashtagController.text = fieldTextEditingController.text;
+                      _hashtagController.selection =
+                          fieldTextEditingController.selection;
+                    });
+
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: fieldTextEditingController,
+                            focusNode: fieldFocusNode,
+                            decoration: InputDecoration(
+                              labelText: 'Hashtag',
+                              hintText: 'Type to search existing hashtags',
+                              suffixIcon: fieldTextEditingController
+                                      .text.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, size: 20),
+                                      onPressed: () {
+                                        fieldTextEditingController.clear();
+                                        _hashtagController.clear();
+                                      },
+                                    )
+                                  : null,
+                            ),
+                            enabled: !_isSaving,
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) {
+                              _addHashtag(fieldTextEditingController.text);
+                              onFieldSubmitted();
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton(
+                          onPressed: _isSaving
+                              ? null
+                              : () {
+                                  _addHashtag(fieldTextEditingController.text);
+                                  onFieldSubmitted();
+                                },
+                          child: const Text('Add'),
+                        ),
+                      ],
+                    );
+                  },
+                  optionsViewBuilder: (
+                    BuildContext context,
+                    AutocompleteOnSelected<String> onSelected,
+                    Iterable<String> options,
+                  ) {
+                    return Align(
+                      alignment: Alignment.topLeft,
+                      child: Material(
+                        elevation: 4.0,
+                        borderRadius: BorderRadius.circular(8),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxHeight: 200,
+                            maxWidth: 300,
+                          ),
+                          child: ListView.builder(
+                            padding: EdgeInsets.zero,
+                            shrinkWrap: true,
+                            itemCount: options.length,
+                            itemBuilder: (BuildContext context, int index) {
+                              final String option = options.elementAt(index);
+                              return InkWell(
+                                onTap: () {
+                                  onSelected(option);
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 12,
+                                  ),
+                                  decoration: BoxDecoration(
+                                    border: Border(
+                                      bottom: BorderSide(
+                                        color: Colors.grey[200]!,
+                                        width: 1,
+                                      ),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        Icons.tag,
+                                        size: 18,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                        '#$option',
+                                        style: TextStyle(
+                                          color: AppTheme.primaryColor,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
             ),
             const SizedBox(height: 16),
 
-            // 해시태그 목록
+            // 추가된 해시태그 목록
             if (_hashtags.isNotEmpty)
               Wrap(
                 spacing: 8,
@@ -446,6 +565,7 @@ class _RefFormScreenState extends State<RefFormScreen> {
                   return Chip(
                     label: Text('#$hashtag'),
                     onDeleted: _isSaving ? null : () => _removeHashtag(hashtag),
+                    deleteIconColor: AppTheme.primaryColor,
                   );
                 }).toList(),
               ),
