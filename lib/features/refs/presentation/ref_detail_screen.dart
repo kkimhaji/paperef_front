@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/ref_provider.dart';
 import '../../../shared/models/ref.dart';
 import '../../../core/theme/app_theme.dart';
@@ -37,6 +39,31 @@ class _RefDetailScreenState extends State<RefDetailScreen> {
         _ref = ref;
         _isLoading = false;
       });
+    }
+  }
+
+  /// URL 열기 (새 탭 또는 외부 브라우저)
+  Future<void> _openUrl(LinkableElement link) async {
+    final uri = Uri.parse(link.url);
+
+    try {
+      // Flutter Web에서는 새 탭에서 열기
+      // 모바일에서는 외부 브라우저에서 열기
+      if (!await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication, // 외부 브라우저에서 열기
+      )) {
+        throw Exception('Could not launch ${link.url}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open link: ${link.url}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -281,46 +308,82 @@ class _RefDetailScreenState extends State<RefDetailScreen> {
 
               const SizedBox(height: 16),
 
-              // Summary Section
               if (_ref!.summary != null && _ref!.summary!.isNotEmpty) ...[
-                _buildSection(
-                  context,
-                  title: 'Summary',
-                  icon: Icons.subject,
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.lightGreen[50]?.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.green[100]!),
-                    ),
-                    child: SelectableText(
-                      _ref!.summary!,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                            height: 1.6,
-                          ),
-                    ),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.borderColor),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Summary',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green[700],
+                            ),
+                      ),
+                      const SizedBox(height: 8),
+                      SelectableLinkify(
+                        text: _ref!.summary!,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                        linkStyle: TextStyle(
+                          color: AppTheme.primaryColor,
+                          decoration: TextDecoration.underline,
+                        ),
+                        onOpen: _openUrl,
+                        options: const LinkifyOptions(
+                          humanize: false,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
               ],
 
               // Content Section
               if (_ref!.content != null && _ref!.content!.isNotEmpty) ...[
-                _buildSection(
-                  context,
-                  title: 'Content',
-                  icon: Icons.description_outlined,
-                  child: SelectableText(
-                    _ref!.content!,
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          height: 1.7,
-                          letterSpacing: 0.2,
+                Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppTheme.borderColor),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Content',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.green[700],
+                                  ),
                         ),
-                  ),
-                ),
-                const SizedBox(height: 16),
+                        const SizedBox(height: 12),
+                        SelectableLinkify(
+                          text: _ref!.content!,
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    height: 1.6,
+                                  ),
+                          linkStyle: TextStyle(
+                            color: AppTheme.primaryColor,
+                            decoration: TextDecoration.underline,
+                            fontWeight: FontWeight.w500,
+                          ),
+                          onOpen: _openUrl,
+                        ),
+                      ],
+                    )),
+                const SizedBox(height: 24),
               ],
 
               // Hashtags Card
