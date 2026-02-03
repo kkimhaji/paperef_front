@@ -275,7 +275,7 @@ class _RefFormScreenState extends State<RefFormScreen> {
                     padding: EdgeInsets.symmetric(horizontal: 16),
                   ),
                   buttonStyleData: const ButtonStyleData(
-                    height: 56,
+                    // height: 56,
                     padding: EdgeInsets.only(right: 8),
                   ),
                   iconStyleData: const IconStyleData(
