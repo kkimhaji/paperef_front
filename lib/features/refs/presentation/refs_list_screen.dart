@@ -5,6 +5,8 @@ import '../../groups/providers/group_provider.dart';
 import '../../groups/presentation/app_drawer.dart';
 import 'ref_detail_screen.dart';
 import 'ref_form_screen.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import 'dart:async';
 
@@ -603,8 +605,8 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                 if (ref.summary != null &&
                                     ref.summary!.isNotEmpty) ...[
                                   const SizedBox(height: 8),
-                                  Text(
-                                    ref.summary!,
+                                  Linkify(
+                                    text: ref.summary!,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
                                     style: Theme.of(context)
@@ -614,6 +616,25 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                           color: AppTheme.textSecondary,
                                           height: 1.4,
                                         ),
+                                    linkStyle: TextStyle(
+                                      color: AppTheme.primaryColor,
+                                      decoration: TextDecoration.underline,
+                                    ),
+                                    onOpen: (link) async {
+                                      final uri = Uri.parse(link.url);
+                                      if (!await launchUrl(uri,
+                                          mode:
+                                              LaunchMode.externalApplication)) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
+                                            SnackBar(
+                                                content: Text(
+                                                    'Could not open ${link.url}')),
+                                          );
+                                        }
+                                      }
+                                    },
                                   ),
                                 ],
                                 if (ref.hashtags.isNotEmpty) ...[
