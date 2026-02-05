@@ -5,8 +5,6 @@ import '../../groups/providers/group_provider.dart';
 import '../../groups/presentation/app_drawer.dart';
 import 'ref_detail_screen.dart';
 import 'ref_form_screen.dart';
-import 'package:flutter_linkify/flutter_linkify.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../core/theme/app_theme.dart';
 import 'dart:async';
 
@@ -19,7 +17,7 @@ class RefsListScreen extends StatefulWidget {
 
 class _RefsListScreenState extends State<RefsListScreen> {
   final _searchController = TextEditingController();
-  final FocusNode _searchFocusNode = FocusNode();
+  final _searchFocusNode = FocusNode();
   bool _isSearching = false;
   Timer? _debounce;
 
@@ -27,9 +25,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<RefProvider>().fetchRefs();
-      context.read<RefProvider>().fetchHashtags();
-      context.read<GroupProvider>().fetchGroupTree();
+      _refreshRefs();
     });
   }
 
@@ -42,63 +38,53 @@ class _RefsListScreenState extends State<RefsListScreen> {
   }
 
   void _onSearchChanged(String query) {
-    // 이전 타이머 취소
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-
-    // 새 타이머 시작 (500ms 후 검색 실행)
     _debounce = Timer(const Duration(milliseconds: 500), () {
-      if (query.trim().isEmpty) {
-        // 빈 문자열이면 검색 초기화 (검색창은 유지)
-        final groupId = context.read<GroupProvider>().selectedGroupId;
-        final hashtag = context.read<RefProvider>().selectedHashtag;
-        context.read<RefProvider>().fetchRefs(
-              groupId: groupId,
-              hashtag: hashtag,
-            );
-      } else {
-        // 검색 실행
-        _performSearch(query);
-      }
+      _performSearch(query);
     });
-  }
-
-  Future<void> _refreshRefs() async {
-    final groupProvider = context.read<GroupProvider>();
-    final refProvider = context.read<RefProvider>();
-    final groupId = groupProvider.selectedGroupId;
-
-    await refProvider.fetchRefs(
-      groupId: groupId,
-      search: refProvider.searchQuery,
-      hashtag: refProvider.selectedHashtag,
-    );
-    await context.read<RefProvider>().fetchHashtags();
-    await context.read<GroupProvider>().fetchGroups();
   }
 
   void _performSearch(String query) {
     final groupId = context.read<GroupProvider>().selectedGroupId;
     final hashtag = context.read<RefProvider>().selectedHashtag;
+    final includeSubgroups = context.read<RefProvider>().includeSubgroups;
 
     context.read<RefProvider>().fetchRefs(
           search: query.trim().isEmpty ? null : query.trim(),
           groupId: groupId,
           hashtag: hashtag,
+          includeSubgroups: includeSubgroups,
         );
   }
 
   void _clearSearch() {
-    _searchFocusNode.unfocus();
-    _searchController.clear();
     setState(() {
+      _searchController.clear();
       _isSearching = false;
     });
     final groupId = context.read<GroupProvider>().selectedGroupId;
     final hashtag = context.read<RefProvider>().selectedHashtag;
+    final includeSubgroups = context.read<RefProvider>().includeSubgroups;
+
     context.read<RefProvider>().fetchRefs(
           groupId: groupId,
           hashtag: hashtag,
+          includeSubgroups: includeSubgroups,
         );
+  }
+
+  Future<void> _refreshRefs() async {
+    final groupId = context.read<GroupProvider>().selectedGroupId;
+    final includeSubgroups = context.read<RefProvider>().includeSubgroups;
+
+    await context.read<RefProvider>().fetchRefs(
+          groupId: groupId,
+          search: context.read<RefProvider>().searchQuery,
+          hashtag: context.read<RefProvider>().selectedHashtag,
+          includeSubgroups: includeSubgroups,
+        );
+    await context.read<RefProvider>().fetchHashtags();
+    await context.read<GroupProvider>().fetchGroupTree();
   }
 
   Future<void> _navigateToEdit(int refId) async {
@@ -133,7 +119,8 @@ class _RefsListScreenState extends State<RefsListScreen> {
     }
   }
 
-  Widget _buildTitle(GroupProvider groupProvider) {
+  /// 클릭 가능한 Breadcrumb 타이틀 생성
+  Widget _buildBreadcrumbTitle(GroupProvider groupProvider) {
     if (_isSearching) {
       return TextField(
         controller: _searchController,
@@ -150,42 +137,83 @@ class _RefsListScreenState extends State<RefsListScreen> {
       );
     }
 
+    // All References
     if (groupProvider.selectedGroupId == null) {
       return const Text('All References');
-    } else if (groupProvider.selectedGroupId == 0) {
+    }
+
+    // Ungrouped
+    if (groupProvider.selectedGroupId == 0) {
       return const Text('Ungrouped');
-    } else {
-      if (groupProvider.breadcrumbs.isNotEmpty) {
-        return SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              for (int i = 0; i < groupProvider.breadcrumbs.length; i++) ...[
-                if (i > 0)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(Icons.chevron_right, size: 16),
-                  ),
-                Text(
-                  groupProvider.breadcrumbs[i]['name'] as String,
-                  style: TextStyle(
-                    fontWeight: i == groupProvider.breadcrumbs.length - 1
-                        ? FontWeight.bold
-                        : FontWeight.normal,
+    }
+
+    // 그룹이 선택된 경우: 클릭 가능한 breadcrumb
+    if (groupProvider.breadcrumbs.isNotEmpty) {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (int i = 0; i < groupProvider.breadcrumbs.length; i++) ...[
+              // 구분자 (첫 번째 항목 제외)
+              if (i > 0)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(
+                    Icons.chevron_right,
+                    size: 16,
+                    color: Colors.grey[600],
                   ),
                 ),
-              ],
-            ],
-          ),
-        );
-      }
 
-      final group = groupProvider.groups.firstWhere(
-        (g) => g.id == groupProvider.selectedGroupId,
-        orElse: () => groupProvider.groups.first,
+              // 클릭 가능한 그룹명
+              InkWell(
+                onTap: () {
+                  final groupId = groupProvider.breadcrumbs[i]['id'] as int;
+
+                  // 현재 선택된 그룹과 다른 경우에만 이동
+                  if (groupId != groupProvider.selectedGroupId) {
+                    groupProvider.selectGroup(groupId);
+                    final includeSubgroups =
+                        context.read<RefProvider>().includeSubgroups;
+                    context.read<RefProvider>().fetchRefs(
+                          groupId: groupId,
+                          includeSubgroups: includeSubgroups,
+                        );
+                  }
+                },
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    groupProvider.breadcrumbs[i]['name'] as String,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: i == groupProvider.breadcrumbs.length - 1
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: i == groupProvider.breadcrumbs.length - 1
+                          ? Colors.black
+                          : AppTheme.primaryColor,
+                      decoration: i == groupProvider.breadcrumbs.length - 1
+                          ? TextDecoration.none
+                          : TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       );
-      return Text(group.name);
     }
+
+    // Fallback: 단일 그룹명
+    final group = groupProvider.groups.firstWhere(
+      (g) => g.id == groupProvider.selectedGroupId,
+      orElse: () => groupProvider.groups.first,
+    );
+    return Text(group.name);
   }
 
   @override
@@ -193,44 +221,49 @@ class _RefsListScreenState extends State<RefsListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Consumer<GroupProvider>(
-          builder: (context, groupProvider, _) => _buildTitle(groupProvider),
+          builder: (context, groupProvider, _) {
+            return _buildBreadcrumbTitle(groupProvider);
+          },
         ),
         actions: [
-          // 하위 그룹 포함 토글 버튼 추가
+          // 하위 그룹 포함/비포함 토글 버튼 (그룹 선택 시에만 표시)
           Consumer2<GroupProvider, RefProvider>(
             builder: (context, groupProvider, refProvider, _) {
-              // 그룹이 선택되지 않았거나 Ungrouped/All References인 경우 숨김
-              if (groupProvider.selectedGroupId == null ||
-                  groupProvider.selectedGroupId == 0) {
-                return const SizedBox.shrink();
+              // 그룹이 선택되고, Ungrouped가 아닌 경우에만 표시
+              if (groupProvider.selectedGroupId != null &&
+                  groupProvider.selectedGroupId != 0) {
+                return IconButton(
+                  icon: Icon(
+                    refProvider.includeSubgroups
+                        ? Icons.account_tree // 트리 아이콘 (하위 포함)
+                        : Icons.folder, // 폴더 아이콘 (현재만)
+                  ),
+                  tooltip: refProvider.includeSubgroups
+                      ? 'Include subgroups'
+                      : 'Current group only',
+                  color: refProvider.includeSubgroups
+                      ? AppTheme.primaryColor
+                      : Colors.grey[600],
+                  onPressed: () {
+                    refProvider.toggleIncludeSubgroups();
+                    refProvider.fetchRefs(
+                      groupId: groupProvider.selectedGroupId,
+                      search: refProvider.searchQuery,
+                      hashtag: refProvider.selectedHashtag,
+                      includeSubgroups: refProvider.includeSubgroups,
+                    );
+                  },
+                );
               }
-
-              return IconButton(
-                icon: Icon(
-                  refProvider.includeSubgroups
-                      ? Icons.account_tree
-                      : Icons.folder,
-                ),
-                tooltip: refProvider.includeSubgroups
-                    ? 'Including subgroups'
-                    : 'Current group only',
-                color: refProvider.includeSubgroups
-                    ? AppTheme.primaryColor
-                    : Colors.grey[600],
-                onPressed: () {
-                  refProvider.toggleIncludeSubgroups();
-                  _refreshRefs();
-                },
-              );
+              return const SizedBox.shrink();
             },
           ),
+
           if (_isSearching)
             Material(
               color: Colors.transparent,
               child: InkWell(
-                onTapDown: (_) {
-                  _clearSearch();
-                },
+                onTapDown: (_) => _clearSearch(),
                 borderRadius: BorderRadius.circular(20),
                 child: Container(
                   padding: const EdgeInsets.all(12),
@@ -259,7 +292,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
       drawer: const AppDrawer(),
       body: Column(
         children: [
-          // 검색 결과 표시
+          // 검색 필터 표시
           Consumer<RefProvider>(
             builder: (context, refProvider, _) {
               if (refProvider.searchQuery != null &&
@@ -278,22 +311,22 @@ class _RefsListScreenState extends State<RefsListScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          'Search results for "${refProvider.searchQuery}"',
+                          'Searching: "${refProvider.searchQuery}"',
                           style: TextStyle(
-                            fontSize: 13,
                             color: AppTheme.primaryColor,
                             fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
-                      GestureDetector(
-                        onTapDown: (_) {
-                          _clearSearch();
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          child: const Icon(Icons.close, size: 18),
+                      IconButton(
+                        icon: Icon(
+                          Icons.close,
+                          size: 18,
+                          color: AppTheme.primaryColor,
                         ),
+                        onPressed: () {
+                          refProvider.clearSearch();
+                        },
                       ),
                     ],
                   ),
@@ -311,6 +344,9 @@ class _RefsListScreenState extends State<RefsListScreen> {
               }
 
               return Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   border: Border(
@@ -319,80 +355,54 @@ class _RefsListScreenState extends State<RefsListScreen> {
                 ),
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   child: Row(
-                    children: [
-                      FilterChip(
-                        label: const Text('All'),
-                        selected: refProvider.selectedHashtag == null,
-                        onSelected: (_) {
-                          refProvider.clearFilter();
-                        },
-                        backgroundColor: Colors.grey[100],
-                        selectedColor: AppTheme.primaryColor.withOpacity(0.15),
-                        checkmarkColor: AppTheme.primaryColor,
-                        labelStyle: TextStyle(
-                          color: refProvider.selectedHashtag == null
-                              ? AppTheme.primaryColor
-                              : AppTheme.textSecondary,
-                          fontWeight: refProvider.selectedHashtag == null
-                              ? FontWeight.w600
-                              : FontWeight.normal,
-                        ),
-                        side: BorderSide(
-                          color: refProvider.selectedHashtag == null
-                              ? AppTheme.primaryColor
-                              : AppTheme.borderColor,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      ...refProvider.hashtags.map((hashtag) {
-                        final isSelected =
-                            refProvider.selectedHashtag == hashtag;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: FilterChip(
-                            label: Text('#$hashtag'),
-                            selected: isSelected,
-                            onSelected: (_) {
-                              final groupId =
-                                  context.read<GroupProvider>().selectedGroupId;
-                              refProvider.fetchRefs(
-                                hashtag: hashtag,
-                                groupId: groupId,
-                                search: refProvider.searchQuery,
-                              );
-                            },
-                            backgroundColor: Colors.grey[100],
-                            selectedColor:
-                                AppTheme.primaryColor.withOpacity(0.15),
-                            checkmarkColor: AppTheme.primaryColor,
-                            labelStyle: TextStyle(
-                              color: isSelected
-                                  ? AppTheme.primaryColor
-                                  : AppTheme.textSecondary,
-                              fontWeight: isSelected
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
-                            ),
-                            side: BorderSide(
-                              color: isSelected
-                                  ? AppTheme.primaryColor
-                                  : AppTheme.borderColor,
-                            ),
+                    children: refProvider.hashtags.map((hashtag) {
+                      final isSelected = refProvider.selectedHashtag == hashtag;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: FilterChip(
+                          label: Text('#$hashtag'),
+                          selected: isSelected,
+                          onSelected: (_) {
+                            final groupId =
+                                context.read<GroupProvider>().selectedGroupId;
+                            final includeSubgroups =
+                                refProvider.includeSubgroups;
+
+                            refProvider.fetchRefs(
+                              hashtag: hashtag,
+                              groupId: groupId,
+                              search: refProvider.searchQuery,
+                              includeSubgroups: includeSubgroups,
+                            );
+                          },
+                          backgroundColor: Colors.grey[100],
+                          selectedColor:
+                              AppTheme.primaryColor.withOpacity(0.15),
+                          checkmarkColor: AppTheme.primaryColor,
+                          labelStyle: TextStyle(
+                            color: isSelected
+                                ? AppTheme.primaryColor
+                                : AppTheme.textSecondary,
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
                           ),
-                        );
-                      }),
-                    ],
+                          side: BorderSide(
+                            color: isSelected
+                                ? AppTheme.primaryColor
+                                : AppTheme.borderColor,
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
                 ),
               );
             },
           ),
 
-          const Divider(height: 1),
-          // 레퍼런스 목록
+          // 레퍼런스 리스트
           Expanded(
             child: Consumer<RefProvider>(
               builder: (context, refProvider, _) {
@@ -405,7 +415,14 @@ class _RefsListScreenState extends State<RefsListScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text('Error: ${refProvider.error}'),
+                        Icon(Icons.error_outline,
+                            size: 48, color: Colors.red[300]),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error: ${refProvider.error}',
+                          style: TextStyle(color: Colors.red[700]),
+                          textAlign: TextAlign.center,
+                        ),
                         const SizedBox(height: 16),
                         ElevatedButton(
                           onPressed: _refreshRefs,
@@ -421,21 +438,23 @@ class _RefsListScreenState extends State<RefsListScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          refProvider.searchQuery != null
-                              ? Icons.search_off
-                              : Icons.note_add_outlined,
-                          size: 64,
-                          color: Colors.grey[300],
-                        ),
+                        Icon(Icons.inbox_outlined,
+                            size: 64, color: Colors.grey[400]),
                         const SizedBox(height: 16),
                         Text(
-                          refProvider.searchQuery != null
-                              ? 'No results found'
-                              : 'No references found. Create your first reference!',
+                          'No references yet',
                           style: TextStyle(
-                            color: AppTheme.textSecondary,
-                            fontSize: 16,
+                            fontSize: 18,
+                            color: Colors.grey[600],
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Tap + to create your first reference',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[500],
                           ),
                         ),
                       ],
@@ -446,23 +465,16 @@ class _RefsListScreenState extends State<RefsListScreen> {
                 return RefreshIndicator(
                   onRefresh: _refreshRefs,
                   child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
                     itemCount: refProvider.refs.length,
+                    padding: const EdgeInsets.all(16),
                     itemBuilder: (context, index) {
                       final ref = refProvider.refs[index];
-                      return Container(
+                      return Card(
                         margin: const EdgeInsets.only(bottom: 12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppTheme.borderColor),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.03),
-                              blurRadius: 8,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
+                        elevation: 1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(color: AppTheme.borderColor),
                         ),
                         child: InkWell(
                           onTap: () async {
@@ -472,12 +484,11 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                 builder: (_) => RefDetailScreen(refId: ref.id),
                               ),
                             );
-
                             if (result == true) {
                               _refreshRefs();
                             }
                           },
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(8),
                           child: Padding(
                             padding: const EdgeInsets.all(16),
                             child: Column(
@@ -486,129 +497,55 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                 Row(
                                   children: [
                                     Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            ref.title,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .titleLarge,
-                                            maxLines: 2,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          if (ref.groupName != null) ...[
-                                            const SizedBox(height: 6),
-                                            Row(
-                                              children: [
-                                                Icon(
-                                                  Icons.folder_outlined,
-                                                  size: 14,
-                                                  color: AppTheme.primaryColor,
-                                                ),
-                                                const SizedBox(width: 4),
-                                                Flexible(
-                                                  child: Text(
-                                                    ref.groupName!,
-                                                    style: TextStyle(
-                                                      fontSize: 12,
-                                                      color:
-                                                          AppTheme.primaryColor,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                    ),
-                                                    maxLines: 1,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                              ],
+                                      child: Text(
+                                        ref.title,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                              fontWeight: FontWeight.bold,
                                             ),
-                                          ],
-                                        ],
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    PopupMenuButton<String>(
-                                      icon: Icon(Icons.more_vert,
-                                          color: Colors.grey[600]),
-                                      onSelected: (value) async {
-                                        if (value == 'edit') {
-                                          await _navigateToEdit(ref.id);
-                                        } else if (value == 'delete') {
-                                          final confirmed =
-                                              await showDialog<bool>(
-                                            context: context,
-                                            builder: (context) => AlertDialog(
-                                              shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                          16)),
-                                              title: const Text(
-                                                  'Delete Reference'),
-                                              content: const Text(
-                                                  'Are you sure you want to delete this reference?'),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () =>
-                                                      Navigator.of(context)
-                                                          .pop(false),
-                                                  child: const Text('Cancel'),
-                                                ),
-                                                FilledButton(
-                                                  onPressed: () =>
-                                                      Navigator.of(context)
-                                                          .pop(true),
-                                                  style: FilledButton.styleFrom(
-                                                      backgroundColor:
-                                                          Colors.red),
-                                                  child: const Text('Delete'),
-                                                ),
-                                              ],
-                                            ),
-                                          );
-
-                                          if (confirmed == true && mounted) {
-                                            await refProvider.deleteRef(ref.id);
-                                          }
-                                        }
-                                      },
-                                      itemBuilder: (context) => [
-                                        const PopupMenuItem(
-                                          value: 'edit',
-                                          child: Row(
-                                            children: [
-                                              Icon(Icons.edit_outlined,
-                                                  size: 18),
-                                              SizedBox(width: 12),
-                                              Text('Edit'),
-                                            ],
-                                          ),
-                                        ),
-                                        const PopupMenuItem(
-                                          value: 'delete',
-                                          child: Row(
-                                            children: [
-                                              Icon(Icons.delete_outline,
-                                                  size: 18, color: Colors.red),
-                                              SizedBox(width: 12),
-                                              Text('Delete',
-                                                  style: TextStyle(
-                                                      color: Colors.red)),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
+                                    IconButton(
+                                      icon: const Icon(Icons.edit, size: 20),
+                                      onPressed: () => _navigateToEdit(ref.id),
+                                      tooltip: 'Edit',
                                     ),
                                   ],
                                 ),
+                                if (ref.groupName != null) ...[
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(
+                                        Icons.folder_outlined,
+                                        size: 14,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          ref.groupName!,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppTheme.primaryColor,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                                 if (ref.summary != null &&
                                     ref.summary!.isNotEmpty) ...[
                                   const SizedBox(height: 8),
-                                  Linkify(
-                                    text: ref.summary!,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
+                                  Text(
+                                    ref.summary!,
                                     style: Theme.of(context)
                                         .textTheme
                                         .bodyMedium
@@ -616,52 +553,32 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                           color: AppTheme.textSecondary,
                                           height: 1.4,
                                         ),
-                                    linkStyle: TextStyle(
-                                      color: AppTheme.primaryColor,
-                                      decoration: TextDecoration.underline,
-                                    ),
-                                    onOpen: (link) async {
-                                      final uri = Uri.parse(link.url);
-                                      if (!await launchUrl(uri,
-                                          mode:
-                                              LaunchMode.externalApplication)) {
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                                content: Text(
-                                                    'Could not open ${link.url}')),
-                                          );
-                                        }
-                                      }
-                                    },
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ],
                                 if (ref.hashtags.isNotEmpty) ...[
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 8),
                                   Wrap(
                                     spacing: 6,
-                                    runSpacing: 6,
-                                    children:
-                                        ref.hashtags.take(3).map((hashtag) {
+                                    runSpacing: 4,
+                                    children: ref.hashtags.map((hashtag) {
                                       return Container(
                                         padding: const EdgeInsets.symmetric(
-                                            horizontal: 10, vertical: 4),
+                                          horizontal: 8,
+                                          vertical: 3,
+                                        ),
                                         decoration: BoxDecoration(
                                           color: AppTheme.primaryColor
-                                              .withOpacity(0.08),
+                                              .withOpacity(0.1),
                                           borderRadius:
                                               BorderRadius.circular(12),
-                                          border: Border.all(
-                                            color: AppTheme.primaryColor
-                                                .withOpacity(0.2),
-                                          ),
                                         ),
                                         child: Text(
                                           '#${hashtag.name}',
                                           style: TextStyle(
+                                            fontSize: 11,
                                             color: AppTheme.primaryColor,
-                                            fontSize: 12,
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
@@ -670,22 +587,12 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                   ),
                                 ],
                                 const SizedBox(height: 8),
-                                Row(
-                                  children: [
-                                    Icon(Icons.access_time,
-                                        size: 12, color: Colors.grey[400]),
-                                    const SizedBox(width: 4),
-                                    Text(
-                                      _formatDate(ref.updatedAt),
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .bodySmall
-                                          ?.copyWith(
-                                            color: Colors.grey[500],
-                                            fontSize: 11,
-                                          ),
-                                    ),
-                                  ],
+                                Text(
+                                  _formatRelativeTime(ref.updatedAt),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: Colors.grey[500],
+                                  ),
                                 ),
                               ],
                             ),
@@ -717,20 +624,20 @@ class _RefsListScreenState extends State<RefsListScreen> {
     );
   }
 
-  String _formatDate(DateTime date) {
+  String _formatRelativeTime(DateTime dateTime) {
     final now = DateTime.now();
-    final difference = now.difference(date);
+    final difference = now.difference(dateTime);
 
-    if (difference.inMinutes < 1) {
+    if (difference.inSeconds < 60) {
       return 'just now';
-    } else if (difference.inHours < 1) {
+    } else if (difference.inMinutes < 60) {
       return '${difference.inMinutes}m ago';
-    } else if (difference.inDays < 1) {
+    } else if (difference.inHours < 24) {
       return '${difference.inHours}h ago';
     } else if (difference.inDays < 7) {
       return '${difference.inDays}d ago';
     } else {
-      return '${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
+      return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
     }
   }
 }
