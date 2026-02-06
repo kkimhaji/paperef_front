@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/ref_provider.dart';
 import '../../groups/providers/group_provider.dart';
 import '../../groups/presentation/app_drawer.dart';
@@ -7,8 +9,6 @@ import 'ref_detail_screen.dart';
 import 'ref_form_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import 'dart:async';
-import 'package:flutter_linkify/flutter_linkify.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 class RefsListScreen extends StatefulWidget {
   const RefsListScreen({super.key});
@@ -121,6 +121,75 @@ class _RefsListScreenState extends State<RefsListScreen> {
     }
   }
 
+  Future<void> _deleteRef(int refId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Text('Delete Reference'),
+        content: const Text(
+          'Are you sure you want to delete this reference? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Colors.red,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      final success = await context.read<RefProvider>().deleteRef(refId);
+      if (success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Reference deleted successfully')),
+        );
+        _refreshRefs();
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to delete reference'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  /// URL 열기 핸들러
+  Future<void> _openUrl(LinkableElement link) async {
+    final uri = Uri.parse(link.url);
+
+    try {
+      if (!await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+        webOnlyWindowName: '_blank',
+      )) {
+        throw Exception('Could not launch ${link.url}');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open link: ${link.url}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
   /// 클릭 가능한 Breadcrumb 타이틀 생성
   Widget _buildBreadcrumbTitle(GroupProvider groupProvider) {
     if (_isSearching) {
@@ -156,7 +225,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
         child: Row(
           children: [
             for (int i = 0; i < groupProvider.breadcrumbs.length; i++) ...[
-              // 구분자 (첫 번째 항목 제외)
               if (i > 0)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -166,13 +234,10 @@ class _RefsListScreenState extends State<RefsListScreen> {
                     color: Colors.grey[600],
                   ),
                 ),
-
-              // 클릭 가능한 그룹명
               InkWell(
                 onTap: () {
                   final groupId = groupProvider.breadcrumbs[i]['id'] as int;
 
-                  // 현재 선택된 그룹과 다른 경우에만 이동
                   if (groupId != groupProvider.selectedGroupId) {
                     groupProvider.selectGroup(groupId);
                     final includeSubgroups =
@@ -210,7 +275,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
       );
     }
 
-    // Fallback: 단일 그룹명
+    // Fallback
     final group = groupProvider.groups.firstWhere(
       (g) => g.id == groupProvider.selectedGroupId,
       orElse: () => groupProvider.groups.first,
@@ -228,24 +293,20 @@ class _RefsListScreenState extends State<RefsListScreen> {
           },
         ),
         actions: [
-          // 하위 그룹 포함/비포함 토글 버튼 (그룹 선택 시에만 표시)
+          // 하위 그룹 포함/비포함 토글
           Consumer2<GroupProvider, RefProvider>(
             builder: (context, groupProvider, refProvider, _) {
-              // 그룹이 선택되고, Ungrouped가 아닌 경우에만 표시
               if (groupProvider.selectedGroupId != null &&
                   groupProvider.selectedGroupId != 0) {
                 return IconButton(
                   icon: Icon(
                     refProvider.includeSubgroups
-                        ? Icons.account_tree // 트리 아이콘 (하위 포함)
-                        : Icons.folder, // 폴더 아이콘 (현재만)
+                        ? Icons.account_tree
+                        : Icons.folder,
                   ),
                   tooltip: refProvider.includeSubgroups
                       ? 'Include subgroups'
                       : 'Current group only',
-                  color: refProvider.includeSubgroups
-                      ? AppTheme.primaryColor
-                      : Colors.grey[600],
                   onPressed: () {
                     refProvider.toggleIncludeSubgroups();
                     refProvider.fetchRefs(
@@ -496,6 +557,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+                                // 제목 + 메뉴 버튼
                                 Row(
                                   children: [
                                     Expanded(
@@ -511,13 +573,56 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    IconButton(
-                                      icon: const Icon(Icons.edit, size: 20),
-                                      onPressed: () => _navigateToEdit(ref.id),
-                                      tooltip: 'Edit',
+                                    // 점 3개 메뉴 버튼
+                                    PopupMenuButton<String>(
+                                      icon: Icon(
+                                        Icons.more_vert,
+                                        color: Colors.grey[600],
+                                        size: 20,
+                                      ),
+                                      onSelected: (value) async {
+                                        if (value == 'edit') {
+                                          await _navigateToEdit(ref.id);
+                                        } else if (value == 'delete') {
+                                          await _deleteRef(ref.id);
+                                        }
+                                      },
+                                      itemBuilder: (context) => [
+                                        const PopupMenuItem(
+                                          value: 'edit',
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.edit_outlined,
+                                                  size: 18),
+                                              SizedBox(width: 12),
+                                              Text('Edit'),
+                                            ],
+                                          ),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'delete',
+                                          child: Row(
+                                            children: [
+                                              Icon(
+                                                Icons.delete_outline,
+                                                size: 18,
+                                                color: Colors.red,
+                                              ),
+                                              SizedBox(width: 12),
+                                              Text(
+                                                'Delete',
+                                                style: TextStyle(
+                                                    color: Colors.red),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
+
+                                // 그룹명
                                 if (ref.groupName != null) ...[
                                   const SizedBox(height: 6),
                                   Row(
@@ -543,10 +648,11 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                     ],
                                   ),
                                 ],
+
+                                // Summary (Linkify 적용)
                                 if (ref.summary != null &&
                                     ref.summary!.isNotEmpty) ...[
                                   const SizedBox(height: 8),
-                                  // Text 위젯 대신 Linkify 사용
                                   Linkify(
                                     text: ref.summary!,
                                     maxLines: 2,
@@ -561,24 +667,16 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                     linkStyle: TextStyle(
                                       color: AppTheme.primaryColor,
                                       decoration: TextDecoration.underline,
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                    onOpen: (link) async {
-                                      final uri = Uri.parse(link.url);
-                                      if (!await launchUrl(uri,
-                                          mode:
-                                              LaunchMode.externalApplication)) {
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                                content: Text(
-                                                    'Could not open ${link.url}')),
-                                          );
-                                        }
-                                      }
-                                    },
+                                    onOpen: _openUrl,
+                                    options: const LinkifyOptions(
+                                      humanize: false,
+                                    ),
                                   ),
                                 ],
+
+                                // 해시태그
                                 if (ref.hashtags.isNotEmpty) ...[
                                   const SizedBox(height: 8),
                                   Wrap(
@@ -608,6 +706,8 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                     }).toList(),
                                   ),
                                 ],
+
+                                // 업데이트 시간
                                 const SizedBox(height: 8),
                                 Text(
                                   _formatRelativeTime(ref.updatedAt),
