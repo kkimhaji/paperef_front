@@ -22,4 +22,8 @@ class ApiConstants {
   static String groupDetail(int id) => '/groups/$id';
   static String groupPath(int id) => '/groups/$id/path';
   static String groupRefCount(int id) => '/groups/$id/ref-count';
+
+  static const String userStats = '/auth/me/stats';
+  static const String changePassword = '/auth/change-password';
+  static const String deleteAccount = '/auth/me';
 }

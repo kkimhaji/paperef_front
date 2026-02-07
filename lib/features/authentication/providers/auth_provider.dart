@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../../shared/services/api_service.dart';
 import '../../../shared/services/storage_service.dart';
 import '../../../shared/models/user.dart';
+import '../../../shared/models/user_stats.dart';
 import '../../../core/constants/api_constants.dart';
 
 class AuthProvider with ChangeNotifier {
@@ -20,9 +21,7 @@ class AuthProvider with ChangeNotifier {
   bool get isInitialized => _isInitialized;
   String? get error => _error;
 
-  AuthProvider(this._apiService, this._storageService) {
-    _initializeAuth();
-  }
+  AuthProvider(this._apiService, this._storageService);
 
   // 초기화 - 저장된 토큰 확인
   Future<void> _initializeAuth() async {
@@ -243,5 +242,85 @@ class AuthProvider with ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  /// 사용자 통계 조회
+  Future<UserStats?> fetchUserStats() async {
+    try {
+      final response = await _apiService.get(ApiConstants.userStats);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return UserStats.fromJson(data);
+      } else {
+        print('Failed to fetch user stats: ${response.statusCode}');
+        return null;
+      }
+    } catch (e) {
+      print('Error fetching user stats: $e');
+      return null;
+    }
+  }
+
+  /// 비밀번호 변경
+  Future<bool> changePassword(
+      String currentPassword, String newPassword) async {
+    try {
+      final response = await _apiService.post(
+        ApiConstants.changePassword,
+        {
+          'current_password': currentPassword,
+          'new_password': newPassword,
+        },
+      );
+
+      if (response.statusCode == 200) {
+        // 비밀번호 변경 성공 시 자동 로그아웃
+        await logout();
+        return true;
+      } else {
+        final data = jsonDecode(response.body);
+        _error = data['detail'] ?? 'Failed to change password';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      print('Error changing password: $e');
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  /// 계정 삭제
+  Future<bool> deleteAccount(String password) async {
+    try {
+      final response = await _apiService.delete(
+        '${ApiConstants.deleteAccount}?password=${Uri.encodeComponent(password)}',
+      );
+
+      if (response.statusCode == 204) {
+        // 계정 삭제 성공 시 데이터 정리
+        await clearUserData();
+        return true;
+      } else {
+        final data = jsonDecode(response.body);
+        _error = data['detail'] ?? 'Failed to delete account';
+        notifyListeners();
+        return false;
+      }
+    } catch (e) {
+      print('Error deleting account: $e');
+      _error = e.toString();
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<void> clearUserData() async {
+    _user = null;
+    _error = null;
+    await _storageService.deleteTokens();
+    notifyListeners();
   }
 }

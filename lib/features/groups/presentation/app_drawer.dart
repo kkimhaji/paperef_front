@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import 'create_group_dialog.dart';
 import 'edit_group_dialog.dart';
 import 'delete_group_dialog.dart';
+import '../../authentication/presentation/account_settings_screen.dart';
 
 class AppDrawer extends StatefulWidget {
   const AppDrawer({super.key});
@@ -151,6 +152,18 @@ class _AppDrawerState extends State<AppDrawer> {
                         context, groupProvider, groupProvider.groupTree, 0)
                     : _buildFlatGroupList(context, groupProvider),
               const Divider(),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text('Account Settings'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const AccountSettingsScreen(),
+                    ),
+                  );
+                },
+              ),
               ListTile(
                 leading: const Icon(Icons.logout),
                 title: const Text('Logout'),
