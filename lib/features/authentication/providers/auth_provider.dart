@@ -21,8 +21,9 @@ class AuthProvider with ChangeNotifier {
   bool get isInitialized => _isInitialized;
   String? get error => _error;
 
-  AuthProvider(this._apiService, this._storageService);
-
+  AuthProvider(this._apiService, this._storageService) {
+    _initializeAuth();
+  }
   // 초기화 - 저장된 토큰 확인
   Future<void> _initializeAuth() async {
     try {
