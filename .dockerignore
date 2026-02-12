@@ -1,0 +1,32 @@
+# Flutter build outputs
+build/
+.dart_tool/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+test/
+integration_test/
+
+# Documentation
+README.md
+docs/
+
+# Platform-specific (web만 빌드하므로)
+android/
+ios/
+linux/
+macos/
+windows/
