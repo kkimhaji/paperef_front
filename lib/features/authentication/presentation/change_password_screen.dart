@@ -20,6 +20,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
+  bool _logoutOtherDevices = true; // 다른 기기 로그아웃 옵션
 
   @override
   void dispose() {
@@ -40,6 +41,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     final success = await authProvider.changePassword(
       _currentPasswordController.text,
       _newPasswordController.text,
+      logoutOtherDevices: _logoutOtherDevices, // 옵션 전달
     );
 
     if (mounted) {
@@ -48,23 +50,57 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       });
 
       if (success) {
-        // 비밀번호 변경 성공 시 로그인 페이지로 이동
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/login',
-          (route) => false,
-        );
+        // 성공 시 이전 화면으로 돌아가면서 성공 메시지 전달
+        Navigator.of(context).pop(true);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('Password changed. Please login with your new password.'),
+          SnackBar(
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.white),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Password changed successfully!',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_logoutOtherDevices) ...[
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Other devices have been logged out for security.',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ],
+              ],
+            ),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 4),
           ),
         );
       } else {
+        // 실패 시 오류 메시지 표시
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(authProvider.error ?? 'Failed to change password'),
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    authProvider.error ?? 'Failed to change password',
+                  ),
+                ),
+              ],
+            ),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -95,10 +131,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 children: [
                   Icon(Icons.info_outline, color: Colors.blue[700]),
                   const SizedBox(width: 12),
-                  Expanded(
+                  const Expanded(
                     child: Text(
-                      'After changing your password, you will be logged out from all devices.',
-                      style: TextStyle(color: Colors.blue[900]),
+                      'Your current session will remain active after changing your password.',
+                      style: TextStyle(fontSize: 14),
                     ),
                   ),
                 ],
@@ -202,6 +238,28 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 }
                 return null;
               },
+            ),
+            const SizedBox(height: 24),
+
+            // 다른 기기 로그아웃 옵션
+            Card(
+              elevation: 0,
+              color: Colors.grey[100],
+              child: SwitchListTile(
+                title: const Text('Log out other devices'),
+                subtitle: const Text(
+                  'For security, log out all other devices after changing password',
+                  style: TextStyle(fontSize: 12),
+                ),
+                value: _logoutOtherDevices,
+                onChanged: _isLoading
+                    ? null
+                    : (value) {
+                        setState(() {
+                          _logoutOtherDevices = value;
+                        });
+                      },
+              ),
             ),
             const SizedBox(height: 24),
 

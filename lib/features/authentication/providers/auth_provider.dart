@@ -173,7 +173,6 @@ class AuthProvider with ChangeNotifier {
 
   Future<void> logout() async {
     final refreshToken = await _storageService.getRefreshToken();
-
     if (refreshToken != null) {
       try {
         print('Logging out...');
@@ -187,7 +186,6 @@ class AuthProvider with ChangeNotifier {
         // 로그아웃 API 실패해도 로컬 토큰은 삭제
       }
     }
-
     await _clearUserData();
     print('Logout complete');
   }
@@ -265,23 +263,38 @@ class AuthProvider with ChangeNotifier {
 
   /// 비밀번호 변경
   Future<bool> changePassword(
-      String currentPassword, String newPassword) async {
+    String currentPassword,
+    String newPassword, {
+    bool logoutOtherDevices = true, // 기본값 true
+  }) async {
+    _error = null;
+
     try {
+      print('Changing password (logout other devices: $logoutOtherDevices)...');
+
+      // 쿼리 파라미터로 옵션 전달
+      final endpoint = logoutOtherDevices
+          ? '${ApiConstants.changePassword}?logout_other_devices=true'
+          : '${ApiConstants.changePassword}?logout_other_devices=false';
+
       final response = await _apiService.post(
-        ApiConstants.changePassword,
+        endpoint,
         {
           'current_password': currentPassword,
           'new_password': newPassword,
         },
+        includeAuth: true,
       );
 
+      print('Change password response: ${response.statusCode}');
+
       if (response.statusCode == 200) {
-        // 비밀번호 변경 성공 시 자동 로그아웃
-        await logout();
+        print('Password changed successfully');
         return true;
       } else {
         final data = jsonDecode(response.body);
         _error = data['detail'] ?? 'Failed to change password';
+        print('Password change failed: $_error');
         notifyListeners();
         return false;
       }

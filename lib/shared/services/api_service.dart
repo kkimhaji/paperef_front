@@ -12,6 +12,7 @@ class ApiService {
   Future<Map<String, String>> _getHeaders({bool includeAuth = true}) async {
     final headers = {
       'Content-Type': 'application/json',
+      'Accept': 'application/json',
     };
 
     if (includeAuth) {
