@@ -194,7 +194,7 @@ class AuthProvider with ChangeNotifier {
   Future<bool> requestPasswordReset(String email) async {
     try {
       final response = await _apiService.post(
-        '/auth/forgot-password',
+        ApiConstants.forgotPassword,
         {'email': email},
         includeAuth: false,
       );
@@ -219,7 +219,7 @@ class AuthProvider with ChangeNotifier {
   Future<bool> resetPassword(String token, String newPassword) async {
     try {
       final response = await _apiService.post(
-        '/auth/reset-password',
+        ApiConstants.resetPassword,
         {
           'token': token,
           'new_password': newPassword,
