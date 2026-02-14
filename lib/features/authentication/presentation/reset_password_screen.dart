@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:web/web.dart' as web;
 import '../providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/password_requirements_widget.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String token;
@@ -41,10 +42,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         setState(() => _isLoading = false);
 
         if (success) {
-          // package:web을 사용하여 브라우저 URL을 루트 경로로 변경
           web.window.history.pushState(null, 'Paperef', '/');
 
-          // 네비게이터 스택을 완전히 초기화하고 루트 경로로 이동
           if (mounted) {
             Navigator.of(context).pushNamedAndRemoveUntil(
               '/',
@@ -52,7 +51,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             );
           }
 
-          // 성공 메시지 표시
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
@@ -116,6 +114,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         ),
                   ),
                   const SizedBox(height: 32),
+
                   TextFormField(
                     controller: _passwordController,
                     decoration: InputDecoration(
@@ -128,13 +127,16 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                               : Icons.visibility,
                         ),
                         onPressed: () {
-                          setState(() => _obscurePassword = !_obscurePassword);
+                          setState(() {
+                            _obscurePassword = !_obscurePassword;
+                          });
                         },
                       ),
                     ),
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.next,
                     enabled: !_isLoading,
+                    onChanged: (_) => setState(() {}), // 실시간 업데이트 추가
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter a password';
@@ -145,6 +147,15 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       return null;
                     },
                   ),
+                  const SizedBox(height: 12),
+
+// 비밀번호 조건 표시 추가
+                  PasswordRequirementsWidget(
+                    password: _passwordController.text,
+                    minLength: 6,
+                  ),
+                  const SizedBox(height: 16),
+
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _confirmPasswordController,

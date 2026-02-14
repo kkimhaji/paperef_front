@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/widgets/password_requirements_widget.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -20,7 +21,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
   bool _isLoading = false;
-  bool _logoutOtherDevices = true; // 다른 기기 로그아웃 옵션
+  bool _logoutOtherDevices = true;
 
   @override
   void dispose() {
@@ -41,7 +42,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     final success = await authProvider.changePassword(
       _currentPasswordController.text,
       _newPasswordController.text,
-      logoutOtherDevices: _logoutOtherDevices, // 옵션 전달
+      logoutOtherDevices: _logoutOtherDevices,
     );
 
     if (mounted) {
@@ -50,7 +51,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       });
 
       if (success) {
-        // 성공 시 이전 화면으로 돌아가면서 성공 메시지 전달
         Navigator.of(context).pop(true);
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -85,7 +85,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
           ),
         );
       } else {
-        // 실패 시 오류 메시지 표시
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(
@@ -193,6 +192,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
               obscureText: _obscureNewPassword,
               enabled: !_isLoading,
+              onChanged: (_) => setState(() {}), // 실시간 업데이트
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter a new password';
@@ -205,6 +205,13 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 }
                 return null;
               },
+            ),
+            const SizedBox(height: 12),
+
+            // 비밀번호 조건 표시 (실시간)
+            PasswordRequirementsWidget(
+              password: _newPasswordController.text,
+              minLength: 6,
             ),
             const SizedBox(height: 16),
 
