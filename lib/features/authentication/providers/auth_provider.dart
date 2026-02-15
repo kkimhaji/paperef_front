@@ -265,20 +265,14 @@ class AuthProvider with ChangeNotifier {
   Future<bool> changePassword(
     String currentPassword,
     String newPassword, {
-    bool logoutOtherDevices = true, // 기본값 true
+    bool logoutOtherDevices = true,
   }) async {
     _error = null;
-
     try {
       print('Changing password (logout other devices: $logoutOtherDevices)...');
 
-      // 쿼리 파라미터로 옵션 전달
-      final endpoint = logoutOtherDevices
-          ? '${ApiConstants.changePassword}?logout_other_devices=true'
-          : '${ApiConstants.changePassword}?logout_other_devices=false';
-
       final response = await _apiService.post(
-        endpoint,
+        '${ApiConstants.changePassword}?logout_other_devices=$logoutOtherDevices',
         {
           'current_password': currentPassword,
           'new_password': newPassword,
@@ -293,7 +287,15 @@ class AuthProvider with ChangeNotifier {
         return true;
       } else {
         final data = jsonDecode(response.body);
-        _error = data['detail'] ?? 'Failed to change password';
+
+        // Handle Pydantic validation errors (422)
+        if (data['detail'] is List) {
+          final errors = data['detail'] as List;
+          _error = errors.map((e) => e['msg'] ?? e.toString()).join(', ');
+        } else {
+          _error = data['detail'] ?? 'Failed to change password';
+        }
+
         print('Password change failed: $_error');
         notifyListeners();
         return false;
