@@ -16,7 +16,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-
   bool _obscureCurrentPassword = true;
   bool _obscureNewPassword = true;
   bool _obscureConfirmPassword = true;
@@ -34,9 +33,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   Future<void> _changePassword() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    setState(() => _isLoading = true);
 
     final authProvider = context.read<AuthProvider>();
     final success = await authProvider.changePassword(
@@ -46,13 +43,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     );
 
     if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
-
+      setState(() => _isLoading = false);
       if (success) {
         Navigator.of(context).pop(true);
-
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Column(
@@ -92,9 +85,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 const Icon(Icons.error_outline, color: Colors.white),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: Text(
-                    authProvider.error ?? 'Failed to change password',
-                  ),
+                  child:
+                      Text(authProvider.error ?? 'Failed to change password'),
                 ),
               ],
             ),
@@ -118,7 +110,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // 안내 메시지
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -129,8 +120,8 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               child: Row(
                 children: [
                   Icon(Icons.info_outline, color: Colors.blue[700]),
-                  const SizedBox(width: 12),
-                  const Expanded(
+                  SizedBox(width: 12),
+                  Expanded(
                     child: Text(
                       'Your current session will remain active after changing your password.',
                       style: TextStyle(fontSize: 14),
@@ -140,23 +131,18 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               ),
             ),
             const SizedBox(height: 24),
-
-            // 현재 비밀번호
             TextFormField(
               controller: _currentPasswordController,
               decoration: InputDecoration(
                 labelText: 'Current Password',
                 prefixIcon: const Icon(Icons.lock_outlined),
                 suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureCurrentPassword
-                        ? Icons.visibility_off
-                        : Icons.visibility,
-                  ),
+                  icon: Icon(_obscureCurrentPassword
+                      ? Icons.visibility_off
+                      : Icons.visibility),
                   onPressed: () {
-                    setState(() {
-                      _obscureCurrentPassword = !_obscureCurrentPassword;
-                    });
+                    setState(() =>
+                        _obscureCurrentPassword = !_obscureCurrentPassword);
                   },
                 ),
               ),
@@ -170,35 +156,29 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               },
             ),
             const SizedBox(height: 16),
-
-            // 새 비밀번호
             TextFormField(
               controller: _newPasswordController,
               decoration: InputDecoration(
                 labelText: 'New Password',
                 prefixIcon: const Icon(Icons.lock_outlined),
                 suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureNewPassword
-                        ? Icons.visibility_off
-                        : Icons.visibility,
-                  ),
+                  icon: Icon(_obscureNewPassword
+                      ? Icons.visibility_off
+                      : Icons.visibility),
                   onPressed: () {
-                    setState(() {
-                      _obscureNewPassword = !_obscureNewPassword;
-                    });
+                    setState(() => _obscureNewPassword = !_obscureNewPassword);
                   },
                 ),
               ),
               obscureText: _obscureNewPassword,
               enabled: !_isLoading,
-              onChanged: (_) => setState(() {}), // 실시간 업데이트
+              onChanged: (_) => setState(() {}),
               validator: (value) {
                 if (value == null || value.isEmpty) {
                   return 'Please enter a new password';
                 }
-                if (value.length < 6) {
-                  return 'Password must be at least 6 characters';
+                if (value.length < 8) {
+                  return 'Password must be at least 8 characters';
                 }
                 if (value == _currentPasswordController.text) {
                   return 'New password must be different from current password';
@@ -207,30 +187,23 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               },
             ),
             const SizedBox(height: 12),
-
-            // 비밀번호 조건 표시 (실시간)
             PasswordRequirementsWidget(
               password: _newPasswordController.text,
-              minLength: 6,
+              minLength: 8,
             ),
             const SizedBox(height: 16),
-
-            // 비밀번호 확인
             TextFormField(
               controller: _confirmPasswordController,
               decoration: InputDecoration(
                 labelText: 'Confirm New Password',
                 prefixIcon: const Icon(Icons.lock_outlined),
                 suffixIcon: IconButton(
-                  icon: Icon(
-                    _obscureConfirmPassword
-                        ? Icons.visibility_off
-                        : Icons.visibility,
-                  ),
+                  icon: Icon(_obscureConfirmPassword
+                      ? Icons.visibility_off
+                      : Icons.visibility),
                   onPressed: () {
-                    setState(() {
-                      _obscureConfirmPassword = !_obscureConfirmPassword;
-                    });
+                    setState(() =>
+                        _obscureConfirmPassword = !_obscureConfirmPassword);
                   },
                 ),
               ),
@@ -247,8 +220,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
               },
             ),
             const SizedBox(height: 24),
-
-            // 다른 기기 로그아웃 옵션
             Card(
               elevation: 0,
               color: Colors.grey[100],
@@ -262,15 +233,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 onChanged: _isLoading
                     ? null
                     : (value) {
-                        setState(() {
-                          _logoutOtherDevices = value;
-                        });
+                        setState(() => _logoutOtherDevices = value);
                       },
               ),
             ),
             const SizedBox(height: 24),
-
-            // 변경 버튼
             FilledButton(
               onPressed: _isLoading ? null : _changePassword,
               child: _isLoading

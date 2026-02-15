@@ -7,7 +7,6 @@ import '../../../shared/widgets/password_requirements_widget.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String token;
-
   const ResetPasswordScreen({super.key, required this.token});
 
   @override
@@ -32,7 +31,6 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   Future<void> _resetPassword() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
-
       final success = await context.read<AuthProvider>().resetPassword(
             widget.token,
             _passwordController.text,
@@ -40,33 +38,25 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
       if (mounted) {
         setState(() => _isLoading = false);
-
         if (success) {
           web.window.history.pushState(null, 'Paperef', '/');
-
           if (mounted) {
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              '/',
-              (route) => false,
+            Navigator.of(context)
+                .pushNamedAndRemoveUntil('/', (route) => false);
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Password reset successfully! Please login with your new password.'),
+                backgroundColor: Colors.green,
+                duration: Duration(seconds: 3),
+              ),
             );
           }
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Password reset successfully! Please login with your new password.',
-              ),
-              backgroundColor: Colors.green,
-              duration: Duration(seconds: 3),
-            ),
-          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(
-                context.read<AuthProvider>().error ??
-                    'Failed to reset password',
-              ),
+              content: Text(context.read<AuthProvider>().error ??
+                  'Failed to reset password'),
               backgroundColor: Colors.red,
             ),
           );
@@ -114,48 +104,39 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         ),
                   ),
                   const SizedBox(height: 32),
-
                   TextFormField(
                     controller: _passwordController,
                     decoration: InputDecoration(
                       labelText: 'New Password',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
+                        icon: Icon(_obscurePassword
+                            ? Icons.visibility_off
+                            : Icons.visibility),
                         onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
+                          setState(() => _obscurePassword = !_obscurePassword);
                         },
                       ),
                     ),
                     obscureText: _obscurePassword,
                     textInputAction: TextInputAction.next,
                     enabled: !_isLoading,
-                    onChanged: (_) => setState(() {}), // 실시간 업데이트 추가
+                    onChanged: (_) => setState(() {}),
                     validator: (value) {
                       if (value == null || value.isEmpty) {
                         return 'Please enter a password';
                       }
-                      if (value.length < 6) {
-                        return 'Password must be at least 6 characters';
+                      if (value.length < 8) {
+                        return 'Password must be at least 8 characters';
                       }
                       return null;
                     },
                   ),
                   const SizedBox(height: 12),
-
-// 비밀번호 조건 표시 추가
                   PasswordRequirementsWidget(
                     password: _passwordController.text,
-                    minLength: 6,
+                    minLength: 8,
                   ),
-                  const SizedBox(height: 16),
-
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _confirmPasswordController,
@@ -163,11 +144,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       labelText: 'Confirm Password',
                       prefixIcon: const Icon(Icons.lock_outline),
                       suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirm
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
+                        icon: Icon(_obscureConfirm
+                            ? Icons.visibility_off
+                            : Icons.visibility),
                         onPressed: () {
                           setState(() => _obscureConfirm = !_obscureConfirm);
                         },
