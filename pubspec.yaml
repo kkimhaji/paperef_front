@@ -1,5 +1,5 @@
 name: paperef
-description: A paper memo management app
+description: Manage your research references
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -37,3 +37,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"

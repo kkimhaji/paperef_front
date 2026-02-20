@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart'; // kIsWeb
 import 'package:provider/provider.dart';
-import 'package:web/web.dart' as web;
+// web 패키지는 웹 환경에서만 조건부 import
 import '../providers/auth_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/password_requirements_widget.dart';
+
+// 웹 전용 import를 조건부로 처리
+import 'reset_password_web_stub.dart'
+    if (dart.library.html) 'reset_password_web_impl.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String token;
@@ -39,7 +44,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         if (success) {
-          web.window.history.pushState(null, 'Paperef', '/');
+          // 웹에서만 history.pushState 실행
+          if (kIsWeb) {
+            pushHistoryState(); // 조건부 import된 함수 호출
+          }
           if (mounted) {
             Navigator.of(context)
                 .pushNamedAndRemoveUntil('/', (route) => false);
@@ -113,9 +121,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         icon: Icon(_obscurePassword
                             ? Icons.visibility_off
                             : Icons.visibility),
-                        onPressed: () {
-                          setState(() => _obscurePassword = !_obscurePassword);
-                        },
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
                     ),
                     obscureText: _obscurePassword,
@@ -147,9 +154,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                         icon: Icon(_obscureConfirm
                             ? Icons.visibility_off
                             : Icons.visibility),
-                        onPressed: () {
-                          setState(() => _obscureConfirm = !_obscureConfirm);
-                        },
+                        onPressed: () =>
+                            setState(() => _obscureConfirm = !_obscureConfirm),
                       ),
                     ),
                     obscureText: _obscureConfirm,
