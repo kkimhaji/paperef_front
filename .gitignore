@@ -97,6 +97,7 @@ ios/Flutter/engine/
 ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 ios/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist
 ios/Runner.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
+ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings
 
 # Podfile.lock (개인 프로젝트 기준, 팀 협업 시엔 포함 권장)
 ios/Podfile.lock
@@ -152,4 +153,5 @@ firebase_options.dart
 .DS_Store
 Thumbs.db
 
-frontend_code.md
+# Flutter 내부 메타데이터 (로컬 환경 정보, 공유 불필요)
+.metadata

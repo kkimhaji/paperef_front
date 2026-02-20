@@ -26,6 +26,10 @@ Flutter/flutter_assets/
 Flutter/flutter_export_environment.sh
 ServiceDefinitions.json
 Runner/GeneratedPluginRegistrant.*
+# Xcode 로컬 워크스페이스 설정 (개인 설정, 공유 불필요)
+xcshareddata/IDEWorkspaceChecks.plist
+xcshareddata/WorkspaceSettings.xcsettings
+xcuserdata/
 
 # Exceptions to above rules.
 !default.mode1v3
