@@ -12,14 +12,14 @@ class ApiConstants {
   static const String resetPassword = '/auth/reset-password';
 
   // Ref endpoints
-  static const String refs = '/refs';
+  static const String refs = '/refs/';
   static String refDetail(int id) => '/refs/$id';
 
   // Hashtag endpoints
-  static const String hashtags = '/hashtags';
+  static const String hashtags = '/hashtags/';
 
   // Group endpoints
-  static const String groups = '/groups';
+  static const String groups = '/groups/';
   static const String groupsTree = '/groups/tree';
   static String groupDetail(int id) => '/groups/$id';
   static String groupPath(int id) => '/groups/$id/path';
