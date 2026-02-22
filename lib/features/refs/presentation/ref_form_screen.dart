@@ -556,14 +556,23 @@ class _RefFormScreenState extends State<RefFormScreen> {
             ),
             const SizedBox(height: 16),
 
-            // 추가된 해시태그 목록
             if (_hashtags.isNotEmpty)
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
                 children: _hashtags.map((hashtag) {
                   return Chip(
-                    label: Text('#$hashtag'),
+                    label: Text(
+                      '#$hashtag',
+                      style: TextStyle(
+                        color: AppTheme.primaryColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                    side: BorderSide(
+                      color: AppTheme.primaryColor.withOpacity(0.3),
+                    ),
                     onDeleted: _isSaving ? null : () => _removeHashtag(hashtag),
                     deleteIconColor: AppTheme.primaryColor,
                   );
