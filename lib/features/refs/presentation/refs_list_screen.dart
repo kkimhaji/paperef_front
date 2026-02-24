@@ -285,15 +285,32 @@ class _RefsListScreenState extends State<RefsListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final shortestSide = mediaQuery.size.shortestSide;
+    final isTablet = shortestSide >= 600;
+    // 스플릿 뷰(좌측 창)일 때 시스템 버튼 회피를 위해 leading 패딩 추가
+    final isNarrowWindow = screenWidth < 600;
+    final extraLeadingPadding = isNarrowWindow ? 52.0 : 0.0;
+
     return Scaffold(
       appBar: AppBar(
+        leadingWidth: 56 + extraLeadingPadding,
+        leading: Padding(
+          padding: EdgeInsets.only(left: extraLeadingPadding),
+          child: Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: () => Scaffold.of(context).openDrawer(),
+            ),
+          ),
+        ),
         title: Consumer<GroupProvider>(
           builder: (context, groupProvider, _) {
             return _buildBreadcrumbTitle(groupProvider);
           },
         ),
         actions: [
-          // 하위 그룹 포함/비포함 토글
           Consumer2<GroupProvider, RefProvider>(
             builder: (context, groupProvider, refProvider, _) {
               if (groupProvider.selectedGroupId != null &&
@@ -321,7 +338,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
               return const SizedBox.shrink();
             },
           ),
-
           if (_isSearching)
             Material(
               color: Colors.transparent,
