@@ -1,6 +1,6 @@
 class ApiConstants {
   // Base URL
-  static const String baseUrl = 'http://3.24.244.150:8000';
+  static const String baseUrl = 'https://dy0r1opnw6uxr.cloudfront.net';
 
   // Auth endpoints
   static const String login = '/auth/token';
