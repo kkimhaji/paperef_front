@@ -17,10 +17,22 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
   bool _isLoading = true;
   String? _error;
 
+  late TextEditingController _usernameController;
+  bool _isEditingUsername = false;
+  bool _isSavingUsername = false;
+
   @override
   void initState() {
     super.initState();
+    final user = context.read<AuthProvider>().user;
+    _usernameController = TextEditingController(text: user?.username ?? '');
     _loadStats();
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadStats() async {
@@ -49,6 +61,45 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
           _isLoading = false;
         });
       }
+    }
+  }
+
+  Future<void> _saveUsername() async {
+    final newUsername = _usernameController.text.trim();
+    if (newUsername.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nickname cannot be empty')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSavingUsername = true;
+    });
+
+    final authProvider = context.read<AuthProvider>();
+    final success = await authProvider.updateUsername(newUsername);
+
+    if (!mounted) return;
+
+    setState(() {
+      _isSavingUsername = false;
+      if (success) {
+        _isEditingUsername = false;
+      }
+    });
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Nickname updated successfully')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.error ?? 'Failed to update nickname'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
@@ -113,7 +164,6 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
         return;
       }
 
-      // 로딩 다이얼로그 표시
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -126,7 +176,7 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
       final success = await authProvider.deleteAccount(password);
 
       if (mounted) {
-        Navigator.of(context).pop(); // 로딩 다이얼로그 닫기
+        Navigator.of(context).pop();
 
         if (success) {
           Navigator.of(context).pushNamedAndRemoveUntil(
@@ -219,7 +269,9 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               radius: 32,
               backgroundColor: AppTheme.primaryColor,
               child: Text(
-                user?.username.substring(0, 1).toUpperCase() ?? 'U',
+                (user?.username.isNotEmpty ?? false)
+                    ? user!.username.substring(0, 1).toUpperCase()
+                    : 'U',
                 style: const TextStyle(
                   fontSize: 28,
                   fontWeight: FontWeight.bold,
@@ -232,12 +284,74 @@ class _AccountSettingsScreenState extends State<AccountSettingsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    user?.username ?? '',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
+                  _isEditingUsername
+                      ? Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: _usernameController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Nickname',
+                                  isDense: true,
+                                  border: OutlineInputBorder(),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            if (_isSavingUsername)
+                              const SizedBox(
+                                height: 24,
+                                width: 24,
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            else ...[
+                              IconButton(
+                                icon: const Icon(Icons.check),
+                                color: AppTheme.primaryColor,
+                                onPressed: _saveUsername,
+                                tooltip: 'Save',
+                              ),
+                              IconButton(
+                                icon: const Icon(Icons.close),
+                                onPressed: () {
+                                  final currentUser =
+                                      context.read<AuthProvider>().user;
+                                  _usernameController.text =
+                                      currentUser?.username ?? '';
+                                  setState(() {
+                                    _isEditingUsername = false;
+                                  });
+                                },
+                                tooltip: 'Cancel',
+                              ),
+                            ],
+                          ],
+                        )
+                      : Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                user?.username ?? '',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                              ),
+                            ),
+                            TextButton.icon(
+                              onPressed: () {
+                                setState(() {
+                                  _isEditingUsername = true;
+                                });
+                              },
+                              icon: const Icon(Icons.edit, size: 18),
+                              label: const Text('Edit'),
+                            ),
+                          ],
                         ),
-                  ),
                   const SizedBox(height: 4),
                   Text(
                     user?.email ?? '',

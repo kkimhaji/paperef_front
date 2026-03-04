@@ -1,6 +1,7 @@
 class ApiConstants {
   // Base URL
   static const String baseUrl = 'https://dy0r1opnw6uxr.cloudfront.net';
+  // static const String baseUrl = 'http://localhost:8000';
 
   // Auth endpoints
   static const String login = '/auth/token';
@@ -10,6 +11,11 @@ class ApiConstants {
   static const String me = '/auth/me';
   static const String forgotPassword = '/auth/forgot-password';
   static const String resetPassword = '/auth/reset-password';
+  static const String userStats = '/auth/me/stats';
+  static const String changePassword = '/auth/change-password';
+  static const String deleteAccount = '/auth/me';
+  static const String updateProfile = '/auth/me';
+  static const String logoutAll = '/auth/logout-all';
 
   // Ref endpoints
   static const String refs = '/refs/';
@@ -24,8 +30,4 @@ class ApiConstants {
   static String groupDetail(int id) => '/groups/$id';
   static String groupPath(int id) => '/groups/$id/path';
   static String groupRefCount(int id) => '/groups/$id/ref-count';
-
-  static const String userStats = '/auth/me/stats';
-  static const String changePassword = '/auth/change-password';
-  static const String deleteAccount = '/auth/me';
 }

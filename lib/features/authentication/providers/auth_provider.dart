@@ -163,6 +163,29 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> updateUsername(String username) async {
+    try {
+      final response = await _apiService.put(
+        ApiConstants.updateProfile,
+        {
+          'username': username,
+        },
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        _user = User.fromJson(data);
+        notifyListeners();
+        return true;
+      } else {
+        _error = 'Failed to update username';
+        return false;
+      }
+    } catch (e) {
+      _error = e.toString();
+      return false;
+    }
+  }
+
   // 사용자 데이터 초기화 (내부 메서드)
   Future<void> _clearUserData() async {
     _user = null;
