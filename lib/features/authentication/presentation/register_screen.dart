@@ -106,6 +106,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       if (value == null || value.isEmpty) {
                         return 'Please enter a username';
                       }
+                      if (value.length < 1 || value.length > 20) {
+                        // 1~20글자
+                        return 'Username must be 1-20 characters';
+                      }
                       return null;
                     },
                   ),
