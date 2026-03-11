@@ -21,7 +21,8 @@ jobs:
         run: |
           flutter pub get
           flutter build web --release \
-            --dart-define=API_BASE_URL=https://dy0r1opnw6uxr.cloudfront.net --base-href /
+            --base-href / \
+            --dart-define=API_BASE_URL=https://dy0r1opnw6uxr.cloudfront.net
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
