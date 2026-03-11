@@ -1,13 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_linkify/flutter_linkify.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/ref_provider.dart';
 import '../../groups/providers/group_provider.dart';
 import '../../groups/presentation/app_drawer.dart';
 import 'ref_detail_screen.dart';
 import 'ref_form_screen.dart';
 import '../../../core/theme/app_theme.dart';
-import '../../../shared/models/ref.dart';
 
 class RefsListScreen extends StatefulWidget {
   const RefsListScreen({super.key});
@@ -25,7 +26,9 @@ class _RefsListScreenState extends State<RefsListScreen> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _refreshRefs());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshRefs();
+    });
   }
 
   @override
@@ -40,8 +43,9 @@ class _RefsListScreenState extends State<RefsListScreen> {
 
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
-    _debounce =
-        Timer(const Duration(milliseconds: 500), () => _performSearch(query));
+    _debounce = Timer(const Duration(milliseconds: 500), () {
+      _performSearch(query);
+    });
   }
 
   void _performSearch(String query) {
@@ -70,24 +74,23 @@ class _RefsListScreenState extends State<RefsListScreen> {
   }
 
   Future<void> _refreshRefs() async {
-    final groupProvider = context.read<GroupProvider>();
+    final groupId = context.read<GroupProvider>().selectedGroupId;
     final refProvider = context.read<RefProvider>();
-    await Future.wait([
-      refProvider.fetchRefs(
-        groupId: groupProvider.selectedGroupId,
-        search: refProvider.searchQuery,
-        hashtag: refProvider.selectedHashtag,
-        includeSubgroups: refProvider.includeSubgroups,
-      ),
-      refProvider.fetchHashtags(),
-      groupProvider.fetchGroupTree(),
-    ]);
+    final groupProvider = context.read<GroupProvider>();
+
+    await refProvider.fetchRefs(
+      groupId: groupId,
+      search: refProvider.searchQuery,
+      hashtag: refProvider.selectedHashtag,
+      includeSubgroups: refProvider.includeSubgroups,
+    );
+    await refProvider.fetchHashtags();
+    await groupProvider.fetchGroupTree();
   }
 
-  // ── Actions ───────────────────────────────────────────────────────────────
+  // ── Navigation ────────────────────────────────────────────────────────────
 
   Future<void> _navigateToEdit(int refId) async {
-    if (!mounted) return;
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -118,62 +121,157 @@ class _RefsListScreenState extends State<RefsListScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete Reference'),
         content: const Text(
-            'Are you sure you want to delete this reference? This action cannot be undone.'),
+          'Are you sure you want to delete this reference? This action cannot be undone.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Cancel'),
           ),
-          TextButton(
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
+          FilledButton(
             onPressed: () => Navigator.of(ctx).pop(true),
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Delete'),
           ),
         ],
       ),
     );
+
     if (confirmed == true && mounted) {
-      await context.read<RefProvider>().deleteRef(refId);
+      final success = await context.read<RefProvider>().deleteRef(refId);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(success
+                ? 'Reference deleted successfully'
+                : 'Failed to delete reference'),
+            backgroundColor: success ? null : Colors.red,
+          ),
+        );
+        if (success) _refreshRefs();
+      }
     }
   }
 
-  // ── AppBar title ──────────────────────────────────────────────────────────
-  String _resolveGroupName(GroupProvider gp) {
-    if (gp.selectedGroupId == null) return 'All References';
-    if (gp.selectedGroupId == 0) return 'Ungrouped';
-    // breadcrumbs가 있으면 마지막 항목이 현재 그룹명
-    if (gp.breadcrumbs.isNotEmpty) {
-      return gp.breadcrumbs.last['name'] as String;
-    }
-    // fallback: groups 리스트에서 찾기
+  Future<void> _openUrl(LinkableElement link) async {
+    final uri = Uri.parse(link.url);
     try {
-      return gp.groups.firstWhere((g) => g.id == gp.selectedGroupId).name;
+      if (!await launchUrl(uri,
+          mode: LaunchMode.externalApplication, webOnlyWindowName: '_blank')) {
+        throw Exception('Could not launch ${link.url}');
+      }
     } catch (_) {
-      return 'References';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open link: ${link.url}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
-  Widget _buildBreadcrumbTitle(GroupProvider gp) {
+  // ── AppBar title (Breadcrumb) ─────────────────────────────────────────────
+
+  Widget _buildBreadcrumbTitle(GroupProvider groupProvider) {
     if (_isSearching) {
       return TextField(
         controller: _searchController,
         focusNode: _searchFocusNode,
-        decoration: const InputDecoration(
-          hintText: 'Search...',
-          border: InputBorder.none,
-        ),
-        onChanged: _onSearchChanged,
         autofocus: true,
+        style: const TextStyle(color: Colors.black),
+        decoration: InputDecoration(
+          hintText: 'Search references...',
+          border: InputBorder.none,
+          hintStyle: TextStyle(color: Colors.grey[400]),
+        ),
+        onSubmitted: _performSearch,
+        onChanged: _onSearchChanged,
       );
     }
-    return Text(_resolveGroupName(gp), overflow: TextOverflow.ellipsis);
+
+    if (groupProvider.selectedGroupId == null) {
+      return const Text('All References');
+    }
+
+    if (groupProvider.selectedGroupId == 0) {
+      return const Text('Ungrouped');
+    }
+
+    // 그룹이 선택된 경우: 클릭 가능한 breadcrumb
+    if (groupProvider.breadcrumbs.isNotEmpty) {
+      return SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (int i = 0; i < groupProvider.breadcrumbs.length; i++) ...[
+              if (i > 0)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: Icon(Icons.chevron_right,
+                      size: 16, color: Colors.grey[600]),
+                ),
+              InkWell(
+                onTap: () {
+                  final groupId = groupProvider.breadcrumbs[i]['id'] as int;
+                  if (groupId != groupProvider.selectedGroupId) {
+                    groupProvider.selectGroup(groupId);
+                    context.read<RefProvider>().fetchRefs(
+                          groupId: groupId,
+                          includeSubgroups:
+                              context.read<RefProvider>().includeSubgroups,
+                        );
+                  }
+                },
+                borderRadius: BorderRadius.circular(4),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                  child: Text(
+                    groupProvider.breadcrumbs[i]['name'] as String,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: i == groupProvider.breadcrumbs.length - 1
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                      color: i == groupProvider.breadcrumbs.length - 1
+                          ? Colors.black
+                          : AppTheme.primaryColor,
+                      decoration: i == groupProvider.breadcrumbs.length - 1
+                          ? TextDecoration.none
+                          : TextDecoration.underline,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      );
+    }
+
+    // Fallback
+    try {
+      final group = groupProvider.groups
+          .firstWhere((g) => g.id == groupProvider.selectedGroupId);
+      return Text(group.name);
+    } catch (_) {
+      return const Text('References');
+    }
   }
+
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
-    final isWide = MediaQuery.of(context).size.width > 600;
-    final extraLeadingPadding = isWide ? 52.0 : 0.0;
+    final mediaQuery = MediaQuery.of(context);
+    final screenWidth = mediaQuery.size.width;
+    final shortestSide = mediaQuery.size.shortestSide;
+    final isTablet = shortestSide >= 600;
+    // 스플릿 뷰(좌측 창)일 때 시스템 버튼 회피를 위해 leading 패딩 추가
+    final isNarrowWindow = screenWidth < 600;
+    final extraLeadingPadding = isNarrowWindow ? 52.0 : 0.0;
 
     return Scaffold(
       appBar: AppBar(
@@ -181,32 +279,38 @@ class _RefsListScreenState extends State<RefsListScreen> {
         leading: Padding(
           padding: EdgeInsets.only(left: extraLeadingPadding),
           child: Builder(
-            builder: (ctx) => IconButton(
+            builder: (context) => IconButton(
               icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(ctx).openDrawer(),
+              onPressed: () => Scaffold.of(context).openDrawer(),
             ),
           ),
         ),
         title: Consumer<GroupProvider>(
-          builder: (_, gp, __) => _buildBreadcrumbTitle(gp),
+          builder: (context, groupProvider, _) {
+            return _buildBreadcrumbTitle(groupProvider);
+          },
         ),
         actions: [
           Consumer2<GroupProvider, RefProvider>(
-            builder: (_, gp, rp, __) {
-              if (gp.selectedGroupId != null && gp.selectedGroupId != 0) {
+            builder: (context, groupProvider, refProvider, _) {
+              if (groupProvider.selectedGroupId != null &&
+                  groupProvider.selectedGroupId != 0) {
                 return IconButton(
                   icon: Icon(
-                      rp.includeSubgroups ? Icons.account_tree : Icons.folder),
-                  tooltip: rp.includeSubgroups
+                    refProvider.includeSubgroups
+                        ? Icons.account_tree
+                        : Icons.folder,
+                  ),
+                  tooltip: refProvider.includeSubgroups
                       ? 'Include subgroups'
                       : 'Current group only',
                   onPressed: () {
-                    rp.toggleIncludeSubgroups();
-                    rp.fetchRefs(
-                      groupId: gp.selectedGroupId,
-                      search: rp.searchQuery,
-                      hashtag: rp.selectedHashtag,
-                      includeSubgroups: rp.includeSubgroups,
+                    refProvider.toggleIncludeSubgroups();
+                    refProvider.fetchRefs(
+                      groupId: groupProvider.selectedGroupId,
+                      search: refProvider.searchQuery,
+                      hashtag: refProvider.selectedHashtag,
+                      includeSubgroups: refProvider.includeSubgroups,
                     );
                   },
                 );
@@ -220,9 +324,9 @@ class _RefsListScreenState extends State<RefsListScreen> {
               child: InkWell(
                 onTapDown: (_) => _clearSearch(),
                 borderRadius: BorderRadius.circular(20),
-                child: const Padding(
-                  padding: EdgeInsets.all(12),
-                  child: Icon(Icons.close),
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  child: const Icon(Icons.close),
                 ),
               ),
             )
@@ -230,51 +334,51 @@ class _RefsListScreenState extends State<RefsListScreen> {
             IconButton(
               icon: const Icon(Icons.search),
               onPressed: () {
-                setState(() => _isSearching = true);
-                WidgetsBinding.instance.addPostFrameCallback(
-                    (_) => _searchFocusNode.requestFocus());
+                setState(() {
+                  _isSearching = true;
+                });
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  _searchFocusNode.requestFocus();
+                });
               },
             ),
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _refreshRefs),
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: _refreshRefs,
+          ),
         ],
       ),
       drawer: const AppDrawer(),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final result = await Navigator.of(context).push<bool>(
-            MaterialPageRoute(builder: (_) => const RefFormScreen()),
-          );
-          if (result == true) _refreshRefs();
-        },
-        child: const Icon(Icons.add),
-      ),
       body: Column(
         children: [
-          // ── Search query indicator ─────────────────────────────────────────
+          // ── 검색 필터 표시 ───────────────────────────────────────────────
           Consumer<RefProvider>(
-            builder: (_, rp, __) {
-              if (rp.searchQuery == null || rp.searchQuery!.isEmpty) {
+            builder: (_, refProvider, __) {
+              if (refProvider.searchQuery == null ||
+                  refProvider.searchQuery!.isEmpty) {
                 return const SizedBox.shrink();
               }
               return Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                color: AppTheme.primaryColor.withOpacity(0.05),
+                color: AppTheme.primaryColor.withOpacity(0.1),
                 child: Row(
                   children: [
                     Icon(Icons.search, size: 16, color: AppTheme.primaryColor),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
-                        'Results for "${rp.searchQuery}"',
+                        'Searching: "${refProvider.searchQuery}"',
                         style: TextStyle(
-                            color: AppTheme.primaryColor, fontSize: 13),
+                          color: AppTheme.primaryColor,
+                          fontWeight: FontWeight.w500,
+                        ),
                       ),
                     ),
-                    GestureDetector(
-                      onTap: _clearSearch,
-                      child: Icon(Icons.close,
-                          size: 16, color: AppTheme.primaryColor),
+                    IconButton(
+                      icon: Icon(Icons.close,
+                          size: 18, color: AppTheme.primaryColor),
+                      onPressed: refProvider.clearSearch,
                     ),
                   ],
                 ),
@@ -282,11 +386,12 @@ class _RefsListScreenState extends State<RefsListScreen> {
             },
           ),
 
-          // ── Hashtag chips ──────────────────────────────────────────────────
+          // ── 해시태그 필터 ────────────────────────────────────────────────
           Consumer<RefProvider>(
-            builder: (ctx, rp, __) {
-              if (rp.hashtags.isEmpty) return const SizedBox.shrink();
+            builder: (ctx, refProvider, __) {
+              if (refProvider.hashtags.isEmpty) return const SizedBox.shrink();
               return Container(
+                width: double.infinity,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
@@ -297,18 +402,18 @@ class _RefsListScreenState extends State<RefsListScreen> {
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: rp.hashtags.map((hashtag) {
-                      final isSelected = rp.selectedHashtag == hashtag;
+                    children: refProvider.hashtags.map((hashtag) {
+                      final isSelected = refProvider.selectedHashtag == hashtag;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: FilterChip(
                           label: Text('#$hashtag'),
                           selected: isSelected,
-                          onSelected: (_) => rp.fetchRefs(
-                            hashtag: isSelected ? null : hashtag,
+                          onSelected: (_) => refProvider.fetchRefs(
+                            hashtag: hashtag,
                             groupId: ctx.read<GroupProvider>().selectedGroupId,
-                            search: rp.searchQuery,
-                            includeSubgroups: rp.includeSubgroups,
+                            search: refProvider.searchQuery,
+                            includeSubgroups: refProvider.includeSubgroups,
                           ),
                           backgroundColor: Colors.grey[100],
                           selectedColor:
@@ -336,14 +441,15 @@ class _RefsListScreenState extends State<RefsListScreen> {
             },
           ),
 
-          // ── Ref list ────────────────────────────────────────────────────────
+          // ── 레퍼런스 리스트 ──────────────────────────────────────────────
           Expanded(
             child: Consumer<RefProvider>(
-              builder: (_, rp, __) {
-                if (rp.isLoading) {
+              builder: (_, refProvider, __) {
+                if (refProvider.isLoading) {
                   return const Center(child: CircularProgressIndicator());
                 }
-                if (rp.error != null) {
+
+                if (refProvider.error != null) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -351,7 +457,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
                         Icon(Icons.error_outline,
                             size: 48, color: Colors.red[300]),
                         const SizedBox(height: 16),
-                        Text('Error: ${rp.error}',
+                        Text('Error: ${refProvider.error}',
                             style: TextStyle(color: Colors.red[700]),
                             textAlign: TextAlign.center),
                         const SizedBox(height: 16),
@@ -362,7 +468,8 @@ class _RefsListScreenState extends State<RefsListScreen> {
                     ),
                   );
                 }
-                if (rp.refs.isEmpty) {
+
+                if (refProvider.refs.isEmpty) {
                   return Center(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -387,10 +494,231 @@ class _RefsListScreenState extends State<RefsListScreen> {
                 return RefreshIndicator(
                   onRefresh: _refreshRefs,
                   child: ListView.builder(
-                    itemCount: rp.refs.length,
+                    itemCount: refProvider.refs.length,
                     padding: const EdgeInsets.all(16),
-                    itemBuilder: (ctx, index) =>
-                        _buildRefCard(ctx, rp.refs[index]),
+                    itemBuilder: (ctx, index) {
+                      final ref = refProvider.refs[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        elevation: 1,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          side: BorderSide(color: AppTheme.borderColor),
+                        ),
+                        child: InkWell(
+                          onTap: () async {
+                            final result = await Navigator.of(ctx).push<bool>(
+                              MaterialPageRoute(
+                                builder: (_) => RefDetailScreen(refId: ref.id),
+                              ),
+                            );
+                            if (result == true) _refreshRefs();
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // 제목 + 메뉴 버튼
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        ref.title,
+                                        style: Theme.of(ctx)
+                                            .textTheme
+                                            .titleMedium
+                                            ?.copyWith(
+                                                fontWeight: FontWeight.bold),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    PopupMenuButton<String>(
+                                      icon: Icon(Icons.more_vert,
+                                          color: Colors.grey[600], size: 20),
+                                      onSelected: (value) async {
+                                        if (value == 'edit') {
+                                          await _navigateToEdit(ref.id);
+                                        } else if (value == 'delete') {
+                                          await _deleteRef(ref.id);
+                                        }
+                                      },
+                                      itemBuilder: (_) => [
+                                        const PopupMenuItem(
+                                          value: 'edit',
+                                          child: Row(children: [
+                                            Icon(Icons.edit_outlined, size: 18),
+                                            SizedBox(width: 12),
+                                            Text('Edit'),
+                                          ]),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'delete',
+                                          child: Row(children: [
+                                            Icon(Icons.delete_outline,
+                                                size: 18, color: Colors.red),
+                                            SizedBox(width: 12),
+                                            Text('Delete',
+                                                style: TextStyle(
+                                                    color: Colors.red)),
+                                          ]),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+
+                                // 그룹명
+                                if (ref.groupName != null) ...[
+                                  const SizedBox(height: 6),
+                                  Row(
+                                    children: [
+                                      Icon(Icons.folder_outlined,
+                                          size: 14,
+                                          color: AppTheme.primaryColor),
+                                      const SizedBox(width: 4),
+                                      Flexible(
+                                        child: Text(
+                                          ref.groupName!,
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            color: AppTheme.primaryColor,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+
+                                // Summaries (최대 3개)
+                                if (ref.summaries.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  ...ref.summaries.asMap().entries.map(
+                                        (entry) => Padding(
+                                          padding:
+                                              const EdgeInsets.only(bottom: 4),
+                                          child: Row(
+                                            crossAxisAlignment:
+                                                CrossAxisAlignment.start,
+                                            children: [
+                                              if (ref.summaries.length > 1) ...[
+                                                Container(
+                                                  margin: const EdgeInsets.only(
+                                                      top: 3, right: 6),
+                                                  width: 16,
+                                                  height: 16,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.green[100],
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            4),
+                                                  ),
+                                                  child: Center(
+                                                    child: Text(
+                                                      '${entry.key + 1}',
+                                                      style: TextStyle(
+                                                        fontSize: 9,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                        color:
+                                                            Colors.green[700],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ] else ...[
+                                                Container(
+                                                  margin: const EdgeInsets.only(
+                                                      top: 7, right: 6),
+                                                  width: 4,
+                                                  height: 4,
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.green[400],
+                                                    shape: BoxShape.circle,
+                                                  ),
+                                                ),
+                                              ],
+                                              Expanded(
+                                                child: Linkify(
+                                                  text: entry.value,
+                                                  maxLines: 2,
+                                                  overflow:
+                                                      TextOverflow.ellipsis,
+                                                  style: Theme.of(ctx)
+                                                      .textTheme
+                                                      .bodyMedium
+                                                      ?.copyWith(
+                                                        color: AppTheme
+                                                            .textSecondary,
+                                                        height: 1.4,
+                                                      ),
+                                                  linkStyle: TextStyle(
+                                                    color:
+                                                        AppTheme.primaryColor,
+                                                    decoration: TextDecoration
+                                                        .underline,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                  onOpen: _openUrl,
+                                                  options: const LinkifyOptions(
+                                                      humanize: false),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                ],
+
+                                // 해시태그
+                                if (ref.hashtags.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    children: ref.hashtags
+                                        .map((hashtag) => Container(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8,
+                                                      vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: AppTheme.primaryColor
+                                                    .withOpacity(0.1),
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              child: Text(
+                                                '#${hashtag.name}',
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  color: AppTheme.primaryColor,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ))
+                                        .toList(),
+                                  ),
+                                ],
+
+                                // 업데이트 시간
+                                const SizedBox(height: 8),
+                                Text(
+                                  _formatRelativeTime(ref.updatedAt),
+                                  style: TextStyle(
+                                      fontSize: 11, color: Colors.grey[500]),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 );
               },
@@ -398,181 +726,24 @@ class _RefsListScreenState extends State<RefsListScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildRefCard(BuildContext context, Ref ref) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: AppTheme.borderColor),
-      ),
-      child: InkWell(
-        onTap: () async {
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
           final result = await Navigator.of(context).push<bool>(
-            MaterialPageRoute(builder: (_) => RefDetailScreen(refId: ref.id)),
+            MaterialPageRoute(builder: (_) => const RefFormScreen()),
           );
           if (result == true) _refreshRefs();
         },
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title + menu
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      ref.title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                    ),
-                  ),
-                  PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert,
-                        size: 20, color: Colors.grey[600]),
-                    onSelected: (value) {
-                      if (value == 'edit') _navigateToEdit(ref.id);
-                      if (value == 'delete') _deleteRef(ref.id);
-                    },
-                    itemBuilder: (_) => [
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: Row(children: [
-                          Icon(Icons.edit_outlined, size: 18),
-                          SizedBox(width: 12),
-                          Text('Edit'),
-                        ]),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Row(children: [
-                          Icon(Icons.delete_outline,
-                              size: 18, color: Colors.red),
-                          SizedBox(width: 12),
-                          Text('Delete', style: TextStyle(color: Colors.red)),
-                        ]),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-
-              // Summaries
-              if (ref.summaries.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                ...ref.summaries.asMap().entries.map(
-                      (entry) => Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (ref.summaries.length > 1) ...[
-                              Container(
-                                margin: const EdgeInsets.only(top: 3, right: 6),
-                                width: 16,
-                                height: 16,
-                                decoration: BoxDecoration(
-                                  color: Colors.green[100],
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Center(
-                                  child: Text(
-                                    '${entry.key + 1}',
-                                    style: TextStyle(
-                                      fontSize: 9,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.green[700],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ] else ...[
-                              Container(
-                                margin: const EdgeInsets.only(top: 6, right: 6),
-                                width: 4,
-                                height: 4,
-                                decoration: BoxDecoration(
-                                  color: Colors.green[400],
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ],
-                            Expanded(
-                              child: Text(
-                                entry.value,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      color: AppTheme.textSecondary,
-                                    ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-              ],
-
-              // Group name
-              if (ref.groupName != null) ...[
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Icon(Icons.folder_outlined,
-                        size: 14, color: Colors.grey[500]),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        ref.groupName!,
-                        style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-
-              // Hashtags
-              if (ref.hashtags.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 4,
-                  runSpacing: 4,
-                  children: ref.hashtags
-                      .map(
-                        (t) => Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.08),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '#${t.name}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: AppTheme.primaryColor,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ],
-            ],
-          ),
-        ),
+        child: const Icon(Icons.add),
       ),
     );
+  }
+
+  String _formatRelativeTime(DateTime dateTime) {
+    final diff = DateTime.now().difference(dateTime);
+    if (diff.inSeconds < 60) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${dateTime.year}-${dateTime.month.toString().padLeft(2, '0')}-${dateTime.day.toString().padLeft(2, '0')}';
   }
 }
