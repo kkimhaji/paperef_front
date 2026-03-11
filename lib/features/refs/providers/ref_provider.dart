@@ -1,39 +1,38 @@
-import 'package:flutter/material.dart';
 import 'dart:convert';
-import '../../../shared/services/api_service.dart';
-import '../../../shared/models/ref.dart';
+import 'package:flutter/foundation.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../shared/models/ref.dart';
+import '../../../shared/services/api_service.dart';
 
-class RefProvider with ChangeNotifier {
+class RefProvider extends ChangeNotifier {
   final ApiService _apiService;
 
   List<Ref> _refs = [];
+  List<String> _hashtags = [];
   bool _isLoading = false;
   String? _error;
   String? _selectedHashtag;
-  List<String> _hashtags = [];
   String? _searchQuery;
   bool _includeSubgroups = true;
 
-  // Getters
+  RefProvider(this._apiService);
+
   List<Ref> get refs => _refs;
+  List<String> get hashtags => _hashtags;
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get selectedHashtag => _selectedHashtag;
-  List<String> get hashtags => _hashtags;
   String? get searchQuery => _searchQuery;
   bool get includeSubgroups => _includeSubgroups;
 
-  RefProvider(this._apiService);
-
-  /// 하위 그룹 포함 여부 토글
   void toggleIncludeSubgroups() {
     _includeSubgroups = !_includeSubgroups;
     notifyListeners();
   }
 
-  /// 레퍼런스 목록 조회
   Future<void> fetchRefs({
+    int skip = 0,
+    int limit = 100,
     String? hashtag,
     int? groupId,
     String? search,
@@ -43,26 +42,18 @@ class RefProvider with ChangeNotifier {
     _error = null;
     _selectedHashtag = hashtag;
     _searchQuery = search;
+    if (includeSubgroups != null) _includeSubgroups = includeSubgroups;
     notifyListeners();
 
     try {
-      final queryParams = <String, String>{};
-
-      if (hashtag != null) {
-        queryParams['hashtag'] = hashtag;
-      }
-
-      if (groupId != null) {
-        queryParams['group_id'] = groupId.toString();
-      }
-
-      if (search != null && search.isNotEmpty) {
-        queryParams['search'] = search;
-      }
-
-      // 하위 그룹 포함 여부
-      queryParams['include_subgroups'] =
-          (includeSubgroups ?? _includeSubgroups).toString();
+      final queryParams = {
+        'skip': skip.toString(),
+        'limit': limit.toString(),
+        'include_subgroups': _includeSubgroups.toString(),
+        if (hashtag != null) 'hashtag': hashtag,
+        if (groupId != null) 'group_id': groupId.toString(),
+        if (search != null && search.isNotEmpty) 'search': search,
+      };
 
       final response = await _apiService.get(
         ApiConstants.refs,
@@ -78,7 +69,10 @@ class RefProvider with ChangeNotifier {
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
+          _isLoading = false;
           await fetchRefs(
+            skip: skip,
+            limit: limit,
             hashtag: hashtag,
             groupId: groupId,
             search: search,
@@ -90,10 +84,8 @@ class RefProvider with ChangeNotifier {
         }
       } else {
         _error = "Failed to load refs: ${response.statusCode}";
-        print('Error response: ${response.body}');
       }
     } catch (e) {
-      print('Error in fetchRefs: $e');
       _error = e.toString();
     }
 
@@ -104,25 +96,21 @@ class RefProvider with ChangeNotifier {
   Future<Ref?> fetchRef(int id) async {
     try {
       final response = await _apiService.get(ApiConstants.refDetail(id));
-
       if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        return Ref.fromJson(data as Map<String, dynamic>);
+        return Ref.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
-        if (refreshed) {
-          return await fetchRef(id);
-        }
+        if (refreshed) return await fetchRef(id);
       }
     } catch (e) {
-      print('Error in fetchRef: $e');
+      debugPrint('Error in fetchRef: $e');
     }
     return null;
   }
 
   Future<bool> createRef({
     required String title,
-    String? summary,
+    List<String>? summaries,
     String? content,
     int? groupId,
     List<String>? hashtags,
@@ -130,28 +118,24 @@ class RefProvider with ChangeNotifier {
     try {
       final body = <String, dynamic>{
         'title': title,
-        'summary': summary,
+        'summaries': summaries ?? [],
         'content': content,
         'group_id': groupId,
         'hashtags': hashtags ?? [],
       };
 
-      final response = await _apiService.post(
-        ApiConstants.refs,
-        body,
-        includeAuth: true,
-      );
+      final response =
+          await _apiService.post(ApiConstants.refs, body, includeAuth: true);
 
       if (response.statusCode == 201) {
-        await fetchRefs();
-        await fetchHashtags();
+        await Future.wait([fetchRefs(), fetchHashtags()]);
         return true;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
           return await createRef(
             title: title,
-            summary: summary,
+            summaries: summaries,
             content: content,
             groupId: groupId,
             hashtags: hashtags,
@@ -160,10 +144,8 @@ class RefProvider with ChangeNotifier {
       } else {
         final data = jsonDecode(response.body);
         _error = data['detail'] ?? 'Failed to create ref';
-        print('Create ref failed: $_error');
       }
     } catch (e) {
-      print('Error in createRef: $e');
       _error = e.toString();
     }
     notifyListeners();
@@ -173,7 +155,7 @@ class RefProvider with ChangeNotifier {
   Future<bool> updateRef({
     required int id,
     String? title,
-    String? summary,
+    List<String>? summaries,
     String? content,
     int? groupId,
     List<String>? hashtags,
@@ -181,19 +163,15 @@ class RefProvider with ChangeNotifier {
     try {
       final body = <String, dynamic>{};
       if (title != null) body['title'] = title;
-      if (summary != null) body['summary'] = summary;
+      if (summaries != null) body['summaries'] = summaries; // [] = clear all
       if (content != null) body['content'] = content;
       if (groupId != null) body['group_id'] = groupId;
       if (hashtags != null) body['hashtags'] = hashtags;
 
-      final response = await _apiService.put(
-        ApiConstants.refDetail(id),
-        body,
-      );
+      final response = await _apiService.put(ApiConstants.refDetail(id), body);
 
       if (response.statusCode == 200) {
-        await fetchRefs();
-        await fetchHashtags();
+        await Future.wait([fetchRefs(), fetchHashtags()]);
         return true;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
@@ -201,7 +179,7 @@ class RefProvider with ChangeNotifier {
           return await updateRef(
             id: id,
             title: title,
-            summary: summary,
+            summaries: summaries,
             content: content,
             groupId: groupId,
             hashtags: hashtags,
@@ -209,7 +187,6 @@ class RefProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Error in updateRef: $e');
       _error = e.toString();
     }
     notifyListeners();
@@ -219,19 +196,14 @@ class RefProvider with ChangeNotifier {
   Future<bool> deleteRef(int id) async {
     try {
       final response = await _apiService.delete(ApiConstants.refDetail(id));
-
       if (response.statusCode == 204) {
-        await fetchRefs();
-        await fetchHashtags();
+        await Future.wait([fetchRefs(), fetchHashtags()]);
         return true;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
-        if (refreshed) {
-          return await deleteRef(id);
-        }
+        if (refreshed) return await deleteRef(id);
       }
     } catch (e) {
-      print('Error in deleteRef: $e');
       _error = e.toString();
     }
     notifyListeners();
@@ -241,18 +213,16 @@ class RefProvider with ChangeNotifier {
   Future<void> fetchHashtags() async {
     try {
       final response = await _apiService.get(ApiConstants.hashtags);
-
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(response.body);
         _hashtags = data.map((item) => item.toString()).toList();
+        notifyListeners();
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
-        if (refreshed) {
-          await fetchHashtags();
-        }
+        if (refreshed) await fetchHashtags();
       }
     } catch (e) {
-      print('Error in fetchHashtags: $e');
+      debugPrint('Error in fetchHashtags: $e');
     }
   }
 

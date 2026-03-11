@@ -2,20 +2,20 @@ class Hashtag {
   final int id;
   final String name;
 
-  Hashtag({required this.id, required this.name});
+  const Hashtag({required this.id, required this.name});
 
-  factory Hashtag.fromJson(Map<String, dynamic> json) {
-    return Hashtag(
-      id: json['id'] as int,
-      name: json['name'] as String,
-    );
-  }
+  factory Hashtag.fromJson(Map<String, dynamic> json) => Hashtag(
+        id: json['id'] as int,
+        name: json['name'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {'id': id, 'name': name};
 }
 
 class Ref {
   final int id;
   final String title;
-  final String? summary;
+  final List<String> summaries;
   final String? content;
   final String? groupName;
   final int? userId;
@@ -24,10 +24,10 @@ class Ref {
   final DateTime updatedAt;
   final List<Hashtag> hashtags;
 
-  Ref({
+  const Ref({
     required this.id,
     required this.title,
-    this.summary,
+    this.summaries = const [],
     this.content,
     this.userId,
     this.groupId,
@@ -42,7 +42,10 @@ class Ref {
       return Ref(
         id: json['id'] as int,
         title: json['title'] as String,
-        summary: json['summary'] as String?,
+        summaries: (json['summaries'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
         content: json['content'] as String?,
         userId: json['user_id'] as int?,
         groupId: json['group_id'] as int?,
@@ -55,25 +58,20 @@ class Ref {
             [],
       );
     } catch (e) {
-      print('Error parsing Ref from JSON: $e');
-      print('JSON data: $json');
       rethrow;
     }
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'summary': summary,
-      'content': content,
-      if (userId != null) 'user_id': userId,
-      if (groupId != null) 'group_id': groupId,
-      if (groupName != null) 'group_name': groupName,
-      'created_at': createdAt.toIso8601String(),
-      'updated_at': updatedAt.toIso8601String(),
-      'hashtags':
-          hashtags.map((tag) => {'id': tag.id, 'name': tag.name}).toList(),
-    };
-  }
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'summaries': summaries,
+        'content': content,
+        if (userId != null) 'user_id': userId,
+        if (groupId != null) 'group_id': groupId,
+        if (groupName != null) 'group_name': groupName,
+        'created_at': createdAt.toIso8601String(),
+        'updated_at': updatedAt.toIso8601String(),
+        'hashtags': hashtags.map((t) => t.toJson()).toList(),
+      };
 }
