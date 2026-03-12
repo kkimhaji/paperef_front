@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:dropdown_button2/dropdown_button2.dart';
+import '../../../core/widget/responseive_container.dart';
 import '../providers/ref_provider.dart';
 import '../../groups/providers/group_provider.dart';
 import '../../../shared/models/ref.dart';
@@ -193,7 +194,7 @@ class _RefFormScreenState extends State<RefFormScreen> {
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: ResponsiveContainer.paddingOf(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

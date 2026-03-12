@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/widget/responseive_container.dart';
 import '../providers/ref_provider.dart';
 import '../../../shared/models/ref.dart';
 import '../../../core/theme/app_theme.dart';
@@ -183,7 +184,7 @@ class _RefDetailScreenState extends State<RefDetailScreen> {
         onRefresh: _loadRef,
         child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.all(16),
+          padding: ResponsiveContainer.paddingOf(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

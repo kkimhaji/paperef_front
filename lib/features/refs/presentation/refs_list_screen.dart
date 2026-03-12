@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_linkify/flutter_linkify.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../core/widget/responseive_container.dart';
 import '../providers/ref_provider.dart';
 import '../../groups/providers/group_provider.dart';
 import '../../groups/presentation/app_drawer.dart';
@@ -265,11 +266,8 @@ class _RefsListScreenState extends State<RefsListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final mediaQuery = MediaQuery.of(context);
-    final screenWidth = mediaQuery.size.width;
-    final shortestSide = mediaQuery.size.shortestSide;
-    final isTablet = shortestSide >= 600;
-    // 스플릿 뷰(좌측 창)일 때 시스템 버튼 회피를 위해 leading 패딩 추가
+    final screenWidth = MediaQuery.of(context).size.width;
+    // iPad 스플릿 뷰(좁은 창)에서 시스템 버튼과 겹치지 않도록 패딩 추가
     final isNarrowWindow = screenWidth < 600;
     final extraLeadingPadding = isNarrowWindow ? 52.0 : 0.0;
 
@@ -279,28 +277,25 @@ class _RefsListScreenState extends State<RefsListScreen> {
         leading: Padding(
           padding: EdgeInsets.only(left: extraLeadingPadding),
           child: Builder(
-            builder: (context) => IconButton(
+            builder: (ctx) => IconButton(
               icon: const Icon(Icons.menu),
-              onPressed: () => Scaffold.of(context).openDrawer(),
+              onPressed: () => Scaffold.of(ctx).openDrawer(),
             ),
           ),
         ),
         title: Consumer<GroupProvider>(
-          builder: (context, groupProvider, _) {
-            return _buildBreadcrumbTitle(groupProvider);
-          },
+          builder: (_, groupProvider, __) =>
+              _buildBreadcrumbTitle(groupProvider),
         ),
         actions: [
           Consumer2<GroupProvider, RefProvider>(
-            builder: (context, groupProvider, refProvider, _) {
+            builder: (_, groupProvider, refProvider, __) {
               if (groupProvider.selectedGroupId != null &&
                   groupProvider.selectedGroupId != 0) {
                 return IconButton(
-                  icon: Icon(
-                    refProvider.includeSubgroups
-                        ? Icons.account_tree
-                        : Icons.folder,
-                  ),
+                  icon: Icon(refProvider.includeSubgroups
+                      ? Icons.account_tree
+                      : Icons.folder),
                   tooltip: refProvider.includeSubgroups
                       ? 'Include subgroups'
                       : 'Current group only',
@@ -334,12 +329,9 @@ class _RefsListScreenState extends State<RefsListScreen> {
             IconButton(
               icon: const Icon(Icons.search),
               onPressed: () {
-                setState(() {
-                  _isSearching = true;
-                });
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  _searchFocusNode.requestFocus();
-                });
+                setState(() => _isSearching = true);
+                WidgetsBinding.instance.addPostFrameCallback(
+                    (_) => _searchFocusNode.requestFocus());
               },
             ),
           IconButton(
@@ -495,7 +487,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
                   onRefresh: _refreshRefs,
                   child: ListView.builder(
                     itemCount: refProvider.refs.length,
-                    padding: const EdgeInsets.all(16),
+                    padding: ResponsiveContainer.paddingOf(context),
                     itemBuilder: (ctx, index) {
                       final ref = refProvider.refs[index];
                       return Card(
