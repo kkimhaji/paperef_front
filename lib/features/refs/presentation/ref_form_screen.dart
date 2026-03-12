@@ -157,10 +157,13 @@ class _RefFormScreenState extends State<RefFormScreen> {
     final tag = raw.trim().toLowerCase().replaceAll(RegExp(r'^#+'), '');
     if (tag.isEmpty || _hashtags.contains(tag)) {
       _hashtagController.clear();
+      setState(() {});
       return;
     }
-    setState(() => _hashtags.add(tag));
-    _hashtagController.clear();
+    setState(() {
+      _hashtags.add(tag);
+      _hashtagController.clear();
+    });
   }
 
   void _removeHashtag(String tag) => setState(() => _hashtags.remove(tag));
@@ -403,51 +406,91 @@ class _RefFormScreenState extends State<RefFormScreen> {
         final available =
             refProvider.hashtags.where((t) => !_hashtags.contains(t)).toList();
 
+        // 현재 입력값으로 필터링된 추천 목록
+        final query = _hashtagController.text.toLowerCase();
+        final suggestions = query.isEmpty
+            ? <String>[]
+            : available.where((t) => t.toLowerCase().contains(query)).toList();
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Autocomplete<String>(
-              optionsBuilder: (value) => value.text.isEmpty
-                  ? const []
-                  : available.where((o) =>
-                      o.toLowerCase().contains(value.text.toLowerCase())),
-              onSelected: _addHashtag,
-              fieldViewBuilder: (ctx, ctrl, focusNode, _) {
-                _hashtagController.addListener(() {
-                  if (ctrl.text != _hashtagController.text) {
-                    ctrl.text = _hashtagController.text;
-                  }
-                });
-                return Focus(
-                  onKeyEvent: (_, event) {
-                    if (event is KeyDownEvent &&
-                        event.logicalKey == LogicalKeyboardKey.tab &&
-                        HardwareKeyboard.instance.isShiftPressed) {
-                      _contentFocusNode.requestFocus();
-                      return KeyEventResult.handled;
-                    }
-                    if (event is KeyDownEvent &&
-                        event.logicalKey == LogicalKeyboardKey.enter) {
-                      _addHashtag(ctrl.text);
-                      return KeyEventResult.handled;
-                    }
-                    return KeyEventResult.ignored;
-                  },
+            // 입력 필드 + Add 버튼
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
                   child: TextFormField(
-                    controller: ctrl,
-                    focusNode: focusNode,
+                    controller: _hashtagController,
+                    focusNode: _hashtagFocusNode,
                     decoration: const InputDecoration(
                       labelText: 'Hashtags',
-                      hintText: 'Type and press Enter',
+                      hintText: 'Type a hashtag',
                       prefixText: '#',
                     ),
                     enabled: !_isSaving,
                     textInputAction: TextInputAction.done,
-                    onFieldSubmitted: _addHashtag,
+                    onChanged: (_) => setState(() {}), // 추천 목록 갱신
+                    onFieldSubmitted: (value) {
+                      _addHashtag(value);
+                      _hashtagFocusNode.requestFocus();
+                    },
                   ),
-                );
-              },
+                ),
+                const SizedBox(width: 8),
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: ElevatedButton(
+                    onPressed: _isSaving
+                        ? null
+                        : () {
+                            _addHashtag(_hashtagController.text);
+                            _hashtagFocusNode.requestFocus();
+                          },
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(64, 48),
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                    ),
+                    child: const Text('Add'),
+                  ),
+                ),
+              ],
             ),
+
+            // 추천 해시태그 목록
+            if (suggestions.isNotEmpty) ...[
+              const SizedBox(height: 4),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  border: Border.all(color: AppTheme.borderColor),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                constraints: const BoxConstraints(maxHeight: 160),
+                child: ListView.builder(
+                  shrinkWrap: true,
+                  padding: EdgeInsets.zero,
+                  itemCount: suggestions.length,
+                  itemBuilder: (_, i) => InkWell(
+                    onTap: () {
+                      _addHashtag(suggestions[i]);
+                      _hashtagFocusNode.requestFocus();
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      child: Text(
+                        '#${suggestions[i]}',
+                        style: TextStyle(color: AppTheme.textSecondary),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+
+            // 추가된 해시태그 chips
             if (_hashtags.isNotEmpty) ...[
               const SizedBox(height: 8),
               Wrap(
