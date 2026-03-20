@@ -19,6 +19,7 @@ class RefsListScreen extends StatefulWidget {
 }
 
 class _RefsListScreenState extends State<RefsListScreen> {
+  final _scrollController = ScrollController();
   final _searchController = TextEditingController();
   final _searchFocusNode = FocusNode();
   bool _isSearching = false;
@@ -27,6 +28,7 @@ class _RefsListScreenState extends State<RefsListScreen> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshRefs();
     });
@@ -34,12 +36,20 @@ class _RefsListScreenState extends State<RefsListScreen> {
 
   @override
   void dispose() {
+    _scrollController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     _debounce?.cancel();
     super.dispose();
   }
 
+  void _onScroll() {
+    // 하단 200px 남았을 때 다음 페이지 요청
+    if (_scrollController.position.pixels >=
+        _scrollController.position.maxScrollExtent - 200) {
+      context.read<RefProvider>().fetchMoreRefs();
+    }
+  }
   // ── Search ────────────────────────────────────────────────────────────────
 
   void _onSearchChanged(String query) {
@@ -486,9 +496,18 @@ class _RefsListScreenState extends State<RefsListScreen> {
                 return RefreshIndicator(
                   onRefresh: _refreshRefs,
                   child: ListView.builder(
-                    itemCount: refProvider.refs.length,
+                    controller: _scrollController,
+                    itemCount:
+                        refProvider.refs.length + (refProvider.hasMore ? 1 : 0),
                     padding: ResponsiveContainer.paddingOf(context),
                     itemBuilder: (ctx, index) {
+                      if (index == refProvider.refs.length) {
+                        return const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(child: CircularProgressIndicator()),
+                        );
+                      }
+
                       final ref = refProvider.refs[index];
                       return Card(
                         margin: const EdgeInsets.only(bottom: 12),

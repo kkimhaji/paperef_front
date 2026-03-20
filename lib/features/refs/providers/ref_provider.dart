@@ -1,38 +1,48 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import '../../../core/constants/api_constants.dart';
-import '../../../shared/models/ref.dart';
 import '../../../shared/services/api_service.dart';
+import '../../../shared/models/ref.dart';
+import '../../../core/constants/api_constants.dart';
 
 class RefProvider extends ChangeNotifier {
+  static const int _pageSize = 20;
+
   final ApiService _apiService;
 
   List<Ref> _refs = [];
-  List<String> _hashtags = [];
   bool _isLoading = false;
-  String? _error;
+  bool _isLoadingMore = false;
+  bool _hasMore = true;
+  String? _nextCursor;
+
+  List<String> _hashtags = [];
   String? _selectedHashtag;
   String? _searchQuery;
   bool _includeSubgroups = true;
+  String? _error;
 
-  RefProvider(this._apiService);
+  // 현재 필터 상태 보존 (fetchMoreRefs에서 재사용)
+  int? _currentGroupId;
 
   List<Ref> get refs => _refs;
   List<String> get hashtags => _hashtags;
   bool get isLoading => _isLoading;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get hasMore => _hasMore;
   String? get error => _error;
   String? get selectedHashtag => _selectedHashtag;
   String? get searchQuery => _searchQuery;
   bool get includeSubgroups => _includeSubgroups;
+
+  RefProvider(this._apiService);
 
   void toggleIncludeSubgroups() {
     _includeSubgroups = !_includeSubgroups;
     notifyListeners();
   }
 
+  /// 첫 페이지 로드 — 필터 변경 시 호출
   Future<void> fetchRefs({
-    int skip = 0,
-    int limit = 100,
     String? hashtag,
     int? groupId,
     String? search,
@@ -40,56 +50,72 @@ class RefProvider extends ChangeNotifier {
   }) async {
     _isLoading = true;
     _error = null;
+    _refs = [];
+    _nextCursor = null;
+    _hasMore = true;
     _selectedHashtag = hashtag;
     _searchQuery = search;
+    _currentGroupId = groupId;
     if (includeSubgroups != null) _includeSubgroups = includeSubgroups;
     notifyListeners();
 
+    await _loadPage(cursor: null);
+  }
+
+  /// 다음 페이지 로드 — 스크롤 하단 도달 시 호출
+  Future<void> fetchMoreRefs() async {
+    if (_isLoadingMore || !_hasMore || _nextCursor == null) return;
+
+    _isLoadingMore = true;
+    notifyListeners();
+
+    await _loadPage(cursor: _nextCursor);
+  }
+
+  Future<void> _loadPage({required String? cursor}) async {
     try {
-      final queryParams = {
-        'skip': skip.toString(),
-        'limit': limit.toString(),
+      final queryParams = <String, String>{
+        'limit': _pageSize.toString(),
         'include_subgroups': _includeSubgroups.toString(),
-        if (hashtag != null) 'hashtag': hashtag,
-        if (groupId != null) 'group_id': groupId.toString(),
-        if (search != null && search.isNotEmpty) 'search': search,
+        if (cursor != null) 'cursor': cursor,
+        if (_selectedHashtag != null) 'hashtag': _selectedHashtag!,
+        if (_currentGroupId != null) 'group_id': _currentGroupId.toString(),
+        if (_searchQuery != null && _searchQuery!.isNotEmpty)
+          'search': _searchQuery!,
       };
 
       final response = await _apiService.get(
         ApiConstants.refs,
-        queryParameters: queryParams.isEmpty ? null : queryParams,
+        queryParameters: queryParams,
       );
 
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        _refs = data
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+
+        final newItems = (data['items'] as List)
             .map((item) => Ref.fromJson(item as Map<String, dynamic>))
             .toList();
+
+        _refs = [..._refs, ...newItems];
+        _hasMore = data['has_more'] as bool;
+        _nextCursor = data['next_cursor'] as String?;
         _error = null;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
         if (refreshed) {
-          _isLoading = false;
-          await fetchRefs(
-            skip: skip,
-            limit: limit,
-            hashtag: hashtag,
-            groupId: groupId,
-            search: search,
-            includeSubgroups: includeSubgroups,
-          );
+          await _loadPage(cursor: cursor);
           return;
-        } else {
-          _error = "Session expired. Please login again.";
         }
+        _error = 'Session expired. Please login again.';
       } else {
-        _error = "Failed to load refs: ${response.statusCode}";
+        _error = 'Failed to load refs: ${response.statusCode}';
       }
     } catch (e) {
       _error = e.toString();
     }
 
     _isLoading = false;
+    _isLoadingMore = false;
     notifyListeners();
   }
 
@@ -116,19 +142,21 @@ class RefProvider extends ChangeNotifier {
     List<String>? hashtags,
   }) async {
     try {
-      final body = <String, dynamic>{
-        'title': title,
-        'summaries': summaries ?? [],
-        'content': content,
-        'group_id': groupId,
-        'hashtags': hashtags ?? [],
-      };
-
-      final response =
-          await _apiService.post(ApiConstants.refs, body, includeAuth: true);
+      final response = await _apiService.post(
+        ApiConstants.refs,
+        {
+          'title': title,
+          'summaries': summaries ?? [],
+          'content': content,
+          'group_id': groupId,
+          'hashtags': hashtags ?? [],
+        },
+        includeAuth: true,
+      );
 
       if (response.statusCode == 201) {
-        await Future.wait([fetchRefs(), fetchHashtags()]);
+        await Future.wait(
+            [fetchRefs(groupId: _currentGroupId), fetchHashtags()]);
         return true;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
@@ -142,8 +170,8 @@ class RefProvider extends ChangeNotifier {
           );
         }
       } else {
-        final data = jsonDecode(response.body);
-        _error = data['detail'] ?? 'Failed to create ref';
+        _error =
+            (jsonDecode(response.body))['detail'] ?? 'Failed to create ref';
       }
     } catch (e) {
       _error = e.toString();
@@ -161,17 +189,19 @@ class RefProvider extends ChangeNotifier {
     List<String>? hashtags,
   }) async {
     try {
-      final body = <String, dynamic>{};
-      if (title != null) body['title'] = title;
-      if (summaries != null) body['summaries'] = summaries; // [] = clear all
-      if (content != null) body['content'] = content;
-      if (groupId != null) body['group_id'] = groupId;
-      if (hashtags != null) body['hashtags'] = hashtags;
+      final body = <String, dynamic>{
+        if (title != null) 'title': title,
+        if (summaries != null) 'summaries': summaries,
+        if (content != null) 'content': content,
+        if (groupId != null) 'group_id': groupId,
+        if (hashtags != null) 'hashtags': hashtags,
+      };
 
       final response = await _apiService.put(ApiConstants.refDetail(id), body);
 
       if (response.statusCode == 200) {
-        await Future.wait([fetchRefs(), fetchHashtags()]);
+        await Future.wait(
+            [fetchRefs(groupId: _currentGroupId), fetchHashtags()]);
         return true;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
@@ -197,7 +227,8 @@ class RefProvider extends ChangeNotifier {
     try {
       final response = await _apiService.delete(ApiConstants.refDetail(id));
       if (response.statusCode == 204) {
-        await Future.wait([fetchRefs(), fetchHashtags()]);
+        await Future.wait(
+            [fetchRefs(groupId: _currentGroupId), fetchHashtags()]);
         return true;
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
@@ -214,8 +245,9 @@ class RefProvider extends ChangeNotifier {
     try {
       final response = await _apiService.get(ApiConstants.hashtags);
       if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        _hashtags = data.map((item) => item.toString()).toList();
+        _hashtags = (jsonDecode(response.body) as List)
+            .map((e) => e.toString())
+            .toList();
         notifyListeners();
       } else if (response.statusCode == 401) {
         final refreshed = await _apiService.refreshAccessToken();
@@ -234,6 +266,6 @@ class RefProvider extends ChangeNotifier {
 
   void clearSearch() {
     _searchQuery = null;
-    fetchRefs(hashtag: _selectedHashtag);
+    fetchRefs(hashtag: _selectedHashtag, groupId: _currentGroupId);
   }
 }
