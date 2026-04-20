@@ -4,6 +4,16 @@ import '../../../shared/services/api_service.dart';
 import '../../../shared/models/ref.dart';
 import '../../../core/constants/api_constants.dart';
 
+enum RefSortBy {
+  updatedDesc('updated_desc', '최신순 (수정일 포함)'),
+  createdDesc('created_desc', '최신순'),
+  createdAsc('created_asc', '등록순');
+
+  const RefSortBy(this.value, this.label);
+  final String value;
+  final String label;
+}
+
 class RefProvider extends ChangeNotifier {
   static const int _pageSize = 20;
 
@@ -14,16 +24,16 @@ class RefProvider extends ChangeNotifier {
   bool _isLoadingMore = false;
   bool _hasMore = true;
   String? _nextCursor;
-
   List<String> _hashtags = [];
   String? _selectedHashtag;
   String? _searchQuery;
   bool _includeSubgroups = true;
   String? _error;
-
+  RefSortBy _sortBy = RefSortBy.updatedDesc;
   // 현재 필터 상태 보존 (fetchMoreRefs에서 재사용)
   int? _currentGroupId;
 
+  //getters
   List<Ref> get refs => _refs;
   List<String> get hashtags => _hashtags;
   bool get isLoading => _isLoading;
@@ -33,12 +43,23 @@ class RefProvider extends ChangeNotifier {
   String? get selectedHashtag => _selectedHashtag;
   String? get searchQuery => _searchQuery;
   bool get includeSubgroups => _includeSubgroups;
-
+  RefSortBy get sortBy => _sortBy;
   RefProvider(this._apiService);
 
   void toggleIncludeSubgroups() {
     _includeSubgroups = !_includeSubgroups;
     notifyListeners();
+  }
+
+  void setSortBy(RefSortBy sortBy) {
+    if (_sortBy == sortBy) return;
+    _sortBy = sortBy;
+    fetchRefs(
+      hashtag: _selectedHashtag,
+      groupId: _currentGroupId,
+      search: _searchQuery,
+      includeSubgroups: _includeSubgroups,
+    );
   }
 
   /// 첫 페이지 로드 — 필터 변경 시 호출
@@ -47,6 +68,7 @@ class RefProvider extends ChangeNotifier {
     int? groupId,
     String? search,
     bool? includeSubgroups,
+    RefSortBy? sortBy,
   }) async {
     _isLoading = true;
     _error = null;
@@ -57,6 +79,7 @@ class RefProvider extends ChangeNotifier {
     _searchQuery = search;
     _currentGroupId = groupId;
     if (includeSubgroups != null) _includeSubgroups = includeSubgroups;
+    if (sortBy != null) _sortBy = sortBy;
     notifyListeners();
 
     await _loadPage(cursor: null);
@@ -65,10 +88,8 @@ class RefProvider extends ChangeNotifier {
   /// 다음 페이지 로드 — 스크롤 하단 도달 시 호출
   Future<void> fetchMoreRefs() async {
     if (_isLoadingMore || !_hasMore || _nextCursor == null) return;
-
     _isLoadingMore = true;
     notifyListeners();
-
     await _loadPage(cursor: _nextCursor);
   }
 
@@ -77,6 +98,7 @@ class RefProvider extends ChangeNotifier {
       final queryParams = <String, String>{
         'limit': _pageSize.toString(),
         'include_subgroups': _includeSubgroups.toString(),
+        'sort_by': _sortBy.value,
         if (cursor != null) 'cursor': cursor,
         if (_selectedHashtag != null) 'hashtag': _selectedHashtag!,
         if (_currentGroupId != null) 'group_id': _currentGroupId.toString(),
@@ -91,7 +113,6 @@ class RefProvider extends ChangeNotifier {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-
         final newItems = (data['items'] as List)
             .map((item) => Ref.fromJson(item as Map<String, dynamic>))
             .toList();

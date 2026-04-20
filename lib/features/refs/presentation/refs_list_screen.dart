@@ -290,6 +290,45 @@ class _RefsListScreenState extends State<RefsListScreen> {
               _buildBreadcrumbTitle(groupProvider),
         ),
         actions: [
+          Consumer<RefProvider>(
+            builder: (_, rp, __) => PopupMenuButton<RefSortBy>(
+              icon: const Icon(Icons.sort),
+              tooltip: 'Sort',
+              onSelected: rp.setSortBy,
+              itemBuilder: (_) => RefSortBy.values
+                  .map(
+                    (sort) => PopupMenuItem(
+                      value: sort,
+                      child: Row(
+                        children: [
+                          Icon(
+                            sort == rp.sortBy
+                                ? Icons.radio_button_checked
+                                : Icons.radio_button_unchecked,
+                            size: 18,
+                            color: sort == rp.sortBy
+                                ? AppTheme.primaryColor
+                                : Colors.grey,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            sort.label,
+                            style: TextStyle(
+                              color: sort == rp.sortBy
+                                  ? AppTheme.primaryColor
+                                  : null,
+                              fontWeight: sort == rp.sortBy
+                                  ? FontWeight.w600
+                                  : FontWeight.normal,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ),
           Consumer2<GroupProvider, RefProvider>(
             builder: (_, groupProvider, refProvider, __) {
               if (groupProvider.selectedGroupId != null &&
