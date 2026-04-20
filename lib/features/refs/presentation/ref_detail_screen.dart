@@ -8,6 +8,7 @@ import '../providers/ref_provider.dart';
 import '../../../shared/models/ref.dart';
 import '../../../core/theme/app_theme.dart';
 import 'ref_form_screen.dart';
+import '../../groups/providers/group_provider.dart';
 
 class RefDetailScreen extends StatefulWidget {
   final int refId;
@@ -188,7 +189,7 @@ class _RefDetailScreenState extends State<RefDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Title ──────────────────────────────────────────────────────
+              // Title
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
@@ -238,18 +239,31 @@ class _RefDetailScreenState extends State<RefDetailScreen> {
                         runSpacing: 4,
                         children: _ref!.hashtags
                             .map(
-                              (t) => Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: AppTheme.primaryColor.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(12),
+                              (t) => InkWell(
+                                onTap: () {
+                                  context
+                                      .read<GroupProvider>()
+                                      .selectGroup(null);
+                                  context.read<RefProvider>().fetchRefs(
+                                        hashtag: t.name,
+                                      );
+                                  Navigator.of(context).pop(false); // 목록으로 돌아가기
+                                },
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color:
+                                        AppTheme.primaryColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Text('#${t.name}',
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppTheme.primaryColor,
+                                          fontWeight: FontWeight.w500)),
                                 ),
-                                child: Text('#${t.name}',
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: AppTheme.primaryColor,
-                                        fontWeight: FontWeight.w500)),
                               ),
                             )
                             .toList(),
@@ -259,7 +273,7 @@ class _RefDetailScreenState extends State<RefDetailScreen> {
                 ),
               ),
 
-              // ── Summaries ──────────────────────────────────────────────────
+              // Summaries
               if (_ref!.summaries.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(
@@ -333,7 +347,7 @@ class _RefDetailScreenState extends State<RefDetailScreen> {
                 ),
               ],
 
-              // ── Content ────────────────────────────────────────────────────
+              // Content
               if (_ref!.content != null && _ref!.content!.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Container(

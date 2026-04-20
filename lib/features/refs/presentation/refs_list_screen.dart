@@ -50,7 +50,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
       context.read<RefProvider>().fetchMoreRefs();
     }
   }
-  // ── Search ────────────────────────────────────────────────────────────────
 
   void _onSearchChanged(String query) {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
@@ -98,8 +97,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
     await refProvider.fetchHashtags();
     await groupProvider.fetchGroupTree();
   }
-
-  // ── Navigation ────────────────────────────────────────────────────────────
 
   Future<void> _navigateToEdit(int refId) async {
     showDialog(
@@ -182,8 +179,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
       }
     }
   }
-
-  // ── AppBar title (Breadcrumb) ─────────────────────────────────────────────
 
   Widget _buildBreadcrumbTitle(GroupProvider groupProvider) {
     if (_isSearching) {
@@ -272,12 +267,9 @@ class _RefsListScreenState extends State<RefsListScreen> {
     }
   }
 
-  // ── Build ─────────────────────────────────────────────────────────────────
-
   @override
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
-    // iPad 스플릿 뷰(좁은 창)에서 시스템 버튼과 겹치지 않도록 패딩 추가
     final isNarrowWindow = screenWidth < 600;
     final extraLeadingPadding = isNarrowWindow ? 52.0 : 0.0;
 
@@ -353,7 +345,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
       drawer: const AppDrawer(),
       body: Column(
         children: [
-          // ── 검색 필터 표시 ───────────────────────────────────────────────
           Consumer<RefProvider>(
             builder: (_, refProvider, __) {
               if (refProvider.searchQuery == null ||
@@ -387,8 +378,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
               );
             },
           ),
-
-          // ── 해시태그 필터 ────────────────────────────────────────────────
           Consumer<RefProvider>(
             builder: (ctx, refProvider, __) {
               if (refProvider.hashtags.isEmpty) return const SizedBox.shrink();
@@ -442,8 +431,6 @@ class _RefsListScreenState extends State<RefsListScreen> {
               );
             },
           ),
-
-          // ── 레퍼런스 리스트 ──────────────────────────────────────────────
           Expanded(
             child: Consumer<RefProvider>(
               builder: (_, refProvider, __) {
@@ -693,23 +680,38 @@ class _RefsListScreenState extends State<RefsListScreen> {
                                     spacing: 6,
                                     runSpacing: 4,
                                     children: ref.hashtags
-                                        .map((hashtag) => Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 8,
-                                                      vertical: 3),
-                                              decoration: BoxDecoration(
-                                                color: AppTheme.primaryColor
-                                                    .withOpacity(0.1),
-                                                borderRadius:
-                                                    BorderRadius.circular(12),
-                                              ),
-                                              child: Text(
-                                                '#${hashtag.name}',
-                                                style: TextStyle(
-                                                  fontSize: 11,
-                                                  color: AppTheme.primaryColor,
-                                                  fontWeight: FontWeight.w500,
+                                        .map((hashtag) => InkWell(
+                                              onTap: () {
+                                                context
+                                                    .read<GroupProvider>()
+                                                    .selectGroup(null);
+                                                context
+                                                    .read<RefProvider>()
+                                                    .fetchRefs(
+                                                      hashtag: hashtag.name,
+                                                    );
+                                              },
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                              child: Container(
+                                                padding:
+                                                    const EdgeInsets.symmetric(
+                                                        horizontal: 8,
+                                                        vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: AppTheme.primaryColor
+                                                      .withOpacity(0.1),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: Text(
+                                                  '#${hashtag.name}',
+                                                  style: TextStyle(
+                                                    fontSize: 11,
+                                                    color:
+                                                        AppTheme.primaryColor,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
                                                 ),
                                               ),
                                             ))
